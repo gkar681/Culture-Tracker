@@ -4,12 +4,21 @@
     "slug": "CultureTracker",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/CultureTrackerLogo.png",
     "scheme": "culturetracker",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.gayakar.CultureTrackerV1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "This app uses the camera to capture photos and videos.",
+        "NSMicrophoneUsageDescription": "This app uses the microphone to record audio.",
+        "NSPhotoLibraryUsageDescription": "This app accesses your photo library to upload media.",
+        "NSPhotoLibraryAddUsageDescription": "This app saves photos and videos to your library.",
+        "NSSpeechRecognitionUsageDescription": "This app may use speech recognition to enhance user experience."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -43,6 +52,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ec2eddd1-9b36-4c40-aa10-057827665f8c"
+      }
     }
   }
 }
