@@ -5,11 +5,27 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as DocumentPicker from 'expo-document-picker';
 import { VictoryAxis, VictoryChart, VictoryLine, VictoryScatter, VictoryTheme } from 'victory-native';
 
+import { ExperimentNotesBlock } from '@/components/experiment-notes-block';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
-import { VoiceInputButton } from '@/components/voice-input';
+import {
+  parseConditions,
+  parseConfluence,
+  parseCountInputs,
+  parseDose,
+  parseExposureHours,
+  parseFlaskType,
+  parseIsoDateFromText,
+  parseMagnificationFromNotes,
+  parseMedia,
+  parseObservationFromNotes,
+  parseOptionalNumber,
+  parsePassageNumber,
+  parseSplitRatio,
+  parseTreatmentName,
+} from '@/lib/experiment-notes-parse';
+import { supabase } from '@/lib/supabase';
 
 type ExperimentCellLineRow = {
   role: string | null;
@@ -23,130 +39,12 @@ type ExperimentCellLineRow = {
   } | null;
 };
 
-function normalizeWhitespace(s: string) {
-  return s.replace(/\s+/g, ' ').trim();
-}
-
-function parseIsoDateFromText(text: string) {
-  const m = text.match(/\b(20\d{2})-(\d{2})-(\d{2})\b/);
-  return m ? m[0] : null;
-}
-
-function parseSplitRatio(text: string) {
-  const m = text.match(/\b(\d+)\s*[:\/]\s*(\d+)\b/);
-  return m ? `${m[1]}:${m[2]}` : null;
-}
-
-function parseConfluence(text: string) {
-  const m = text.match(/\b(\d{1,3})(?:\s*%|\s*percent)?\s*(?:confluence|confluent)\b/i);
-  if (!m) return null;
-  const n = Number(m[1]);
-  if (!Number.isFinite(n) || n < 0 || n > 100) return null;
-  return n;
-}
-
-function parsePassageNumber(text: string) {
-  // P12 / passage 12
-  const m = text.match(/\b(?:p|passage)\s*#?\s*(\d+)\b/i);
-  if (!m) return null;
-  const n = Number(m[1]);
-  return Number.isFinite(n) ? n : null;
-}
-
-function parseFlaskType(text: string) {
-  const m =
-    text.match(/\b(t-\s*\d+)\b/i) ||
-    text.match(/\b(\d+\s*-\s*well|\d+\s*well)\b/i) ||
-    text.match(/\b(flask\s*[a-z0-9-]+)\b/i);
-  return m ? normalizeWhitespace(m[1]).toUpperCase().replace(/\s+/g, '') : null;
-}
-
-function parseMedia(text: string) {
-  // Prefer explicit "media: X" style.
-  const m = text.match(/\bmedia\s*[:\-]\s*([a-z0-9+ ./_-]{2,40})/i);
-  if (m) return normalizeWhitespace(m[1]);
-
-  // Common media names (best-effort).
-  const common = ['DMEM', 'RPMI', 'DMEM/F12', 'IMDM', 'MEM', 'DMEM F12'];
-  for (const c of common) {
-    if (text.toUpperCase().includes(c.replace(' ', ''))) return c.replace(' ', '');
-  }
-  return null;
-}
-
-function parseDose(text: string) {
-  const m = text.match(
-    /\b(\d+(?:\.\d+)?)\s*(uM|µM|mM|nM|pM|ng\/mL|ug\/mL|µg\/mL|mg\/mL)\b/i,
-  );
-  return m ? `${m[1]} ${m[2]}`.replace('uM', 'µM').replace('ug', 'µg') : null;
-}
-
-function parseExposureHours(text: string) {
-  const m = text.match(/\b(?:for|duration|exposure)\s*(\d+(?:\.\d+)?)\s*(h|hr|hrs|hours)\b/i);
-  if (!m) return null;
-  const n = Number(m[1]);
-  return Number.isFinite(n) ? n : null;
-}
-
-function parseConditions(text: string) {
-  const parts: string[] = [];
-  if (/\b37\s*°?\s*c\b/i.test(text)) parts.push('37°C');
-  if (/\b5\s*%?\s*(co2|co₂)\b/i.test(text)) parts.push('5% CO₂');
-  if (/\b\d+\s*%?\s*(co2|co₂)\b/i.test(text) && !parts.includes('5% CO₂')) {
-    const m = text.match(/\b(\d+)\s*%?\s*(co2|co₂)\b/i);
-    if (m) parts.push(`${m[1]}% CO₂`);
-  }
-  return parts.length ? parts.join(', ') : null;
-}
-
-function parseCountInputs(text: string) {
-  const t = text;
-  const raw =
-    t.match(/\braw\s*count\s*[:\-]?\s*(\d+)\b/i) ||
-    t.match(/\bcount\s*[:\-]?\s*(\d+)\b/i);
-  const dilution =
-    t.match(/\b(?:dilution|diluted)\s*(?:factor)?\s*[:\-]?\s*(\d+(?:\.\d+)?)\b/i) ||
-    t.match(/\bdf\s*[:\-]?\s*(\d+(?:\.\d+)?)\b/i);
-  const vol =
-    t.match(/\b(?:volume\s*counted|counted\s*volume|volume)\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*(?:u?l|µl)\b/i) ||
-    t.match(/\b(\d+(?:\.\d+)?)\s*(?:u?l|µl)\s*(?:counted)\b/i);
-  const viable = t.match(/\b(\d+(?:\.\d+)?)\s*%?\s*(?:viable|viability)\b/i);
-  const cultureVol = t.match(/\b(?:culture|total)\s*volume\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*ml\b/i);
-
-  const parseNum = (m: RegExpMatchArray | null) => (m ? Number(m[1]) : null);
-
-  return {
-    rawCount: raw ? Number(raw[1]) : null,
-    dilutionFactor: parseNum(dilution),
-    volumeCountedUl: parseNum(vol),
-    viablePercent: parseNum(viable),
-    cultureVolumeMl: parseNum(cultureVol),
-  };
-}
-
-function parseTreatmentName(text: string) {
-  // "treated with doxorubicin 10 uM" => doxorubicin
-  const m = text.match(/\b(?:treated\s+with|treat(?:ment)?\s*[:\-]?)\s*([a-z0-9 _-]{2,40})/i);
-  if (!m) return null;
-  // stop at dose if present
-  const candidate = m[1].split(/\b\d/)[0];
-  return normalizeWhitespace(candidate);
-}
-
 function isoToday() {
   const d = new Date();
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
-}
-
-function parseOptionalNumber(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const n = Number(trimmed);
-  // avoid NaN
-  return Number.isFinite(n) ? n : null;
 }
 
 export default function ExperimentDetailScreen() {
@@ -337,6 +235,15 @@ export default function ExperimentDetailScreen() {
     setObservationNotes('');
   };
 
+  const applyObservationParse = () => {
+    const text = observationNotes;
+    if (!text.trim()) return;
+    const o = parseObservationFromNotes(text);
+    if (!morphologyObs.trim() && o.morphology) setMorphologyObs(o.morphology);
+    if (!confluenceObs.trim() && o.confluence != null) setConfluenceObs(String(o.confluence));
+    if (!contaminationCheck.trim() && o.contaminationCheck) setContaminationCheck(o.contaminationCheck);
+  };
+
   // -------- Cell counts form state
   const [countCellLineId, setCountCellLineId] = useState<string | null>(null);
   const [rawCount, setRawCount] = useState('');
@@ -490,6 +397,13 @@ export default function ExperimentDetailScreen() {
   const [imageCellLineId, setImageCellLineId] = useState<string | null>(null);
   const [imageMagnification, setImageMagnification] = useState('');
   const [imageNotes, setImageNotes] = useState('');
+
+  const applyImageParse = () => {
+    const text = imageNotes;
+    if (!text.trim()) return;
+    const mag = parseMagnificationFromNotes(text);
+    if (!imageMagnification.trim() && mag) setImageMagnification(mag);
+  };
 
   useEffect(() => {
     if (!imageCellLineId && cellLineOptions.length > 0) setImageCellLineId(cellLineOptions[0].id);
@@ -648,7 +562,10 @@ export default function ExperimentDetailScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag">
         <TouchableOpacity onPress={() => router.back()}>
           <ThemedText type="defaultSemiBold">{'‹ Back'}</ThemedText>
         </TouchableOpacity>
@@ -819,19 +736,13 @@ export default function ExperimentDetailScreen() {
           <TextInput style={styles.input} value={splitRatio} onChangeText={setSplitRatio} placeholder="Split ratio (e.g. 1:10)" />
           <TextInput style={styles.input} value={flaskType} onChangeText={setFlaskType} placeholder="Flask type (e.g. T-75)" />
           <TextInput style={styles.input} value={mediaUsed} onChangeText={setMediaUsed} placeholder="Media used" />
-          <TextInput
-            style={[styles.input, styles.multiline]}
+          <ExperimentNotesBlock
             value={passageNotes}
             onChangeText={setPassageNotes}
-            placeholder="Notes"
-            multiline
-            numberOfLines={3}
+            inputStyle={[styles.input, styles.multiline]}
+            placeholder="Notes — e.g. P3, 80% confluence, split 1:10, T-75, DMEM"
+            onParse={applyPassageParse}
           />
-          <View style={styles.inlineActions}>
-            <TouchableOpacity style={styles.secondaryBtn} onPress={applyPassageParse}>
-              <ThemedText type="defaultSemiBold">Parse notes → fields</ThemedText>
-            </TouchableOpacity>
-          </View>
 
           <TouchableOpacity style={styles.primaryBtn} onPress={createPassage}>
             <ThemedText type="defaultSemiBold">{'Add passage'}</ThemedText>
@@ -861,15 +772,13 @@ export default function ExperimentDetailScreen() {
           <TextInput style={styles.input} value={morphologyObs} onChangeText={setMorphologyObs} placeholder="Morphology (e.g. healthy, stressed)" />
           <TextInput style={styles.input} value={confluenceObs} onChangeText={setConfluenceObs} placeholder="Confluence % (optional)" keyboardType="numeric" />
           <TextInput style={styles.input} value={contaminationCheck} onChangeText={setContaminationCheck} placeholder="Contamination check" />
-          <TextInput
-            style={[styles.input, styles.multiline]}
+          <ExperimentNotesBlock
             value={observationNotes}
             onChangeText={setObservationNotes}
-            placeholder="Notes"
-            multiline
-            numberOfLines={3}
+            inputStyle={[styles.input, styles.multiline]}
+            placeholder="Notes — morphology, confluence %, contamination (dictate or type)"
+            onParse={applyObservationParse}
           />
-            <VoiceInputButton value={observationNotes} onChangeText={setObservationNotes} />
 
           <TouchableOpacity style={styles.primaryBtn} onPress={createObservation}>
             <ThemedText type="defaultSemiBold">{'Add observation'}</ThemedText>
@@ -900,20 +809,13 @@ export default function ExperimentDetailScreen() {
           <TextInput style={styles.input} value={volumeCountedUl} onChangeText={setVolumeCountedUl} placeholder="Volume counted (ul)" keyboardType="numeric" />
           <TextInput style={styles.input} value={viablePercent} onChangeText={setViablePercent} placeholder="Viable % (optional)" keyboardType="numeric" />
           <TextInput style={styles.input} value={cultureVolumeMl} onChangeText={setCultureVolumeMl} placeholder="Culture volume ML (optional for total cells)" keyboardType="numeric" />
-          <TextInput
-            style={[styles.input, styles.multiline]}
+          <ExperimentNotesBlock
             value={countNotes}
             onChangeText={setCountNotes}
-            placeholder="Notes"
-            multiline
-            numberOfLines={3}
+            inputStyle={[styles.input, styles.multiline]}
+            placeholder="Notes — raw count, dilution, µL counted, viability %, culture volume mL"
+            onParse={applyCountParse}
           />
-            <VoiceInputButton value={countNotes} onChangeText={setCountNotes} />
-          <View style={styles.inlineActions}>
-            <TouchableOpacity style={styles.secondaryBtn} onPress={applyCountParse}>
-              <ThemedText type="defaultSemiBold">Parse notes → fields</ThemedText>
-            </TouchableOpacity>
-          </View>
 
           <ThemedText>
             {computedCounts.cellsPerMl != null
@@ -951,20 +853,13 @@ export default function ExperimentDetailScreen() {
           <TextInput style={styles.input} value={treatmentDose} onChangeText={setTreatmentDose} placeholder="Dose (e.g. 10 uM)" />
           <TextInput style={styles.input} value={treatmentExposureHours} onChangeText={setTreatmentExposureHours} placeholder="Exposure duration (hours)" keyboardType="numeric" />
           <TextInput style={styles.input} value={treatmentConditions} onChangeText={setTreatmentConditions} placeholder="Conditions (e.g. 37C, CO2)" />
-          <TextInput
-            style={[styles.input, styles.multiline]}
+          <ExperimentNotesBlock
             value={treatmentNotes}
             onChangeText={setTreatmentNotes}
-            placeholder="Notes"
-            multiline
-            numberOfLines={3}
+            inputStyle={[styles.input, styles.multiline]}
+            placeholder="Notes — drug name, dose (e.g. 10 µM), hours, 37°C / CO₂"
+            onParse={applyTreatmentParse}
           />
-            <VoiceInputButton value={treatmentNotes} onChangeText={setTreatmentNotes} />
-          <View style={styles.inlineActions}>
-            <TouchableOpacity style={styles.secondaryBtn} onPress={applyTreatmentParse}>
-              <ThemedText type="defaultSemiBold">Parse notes → fields</ThemedText>
-            </TouchableOpacity>
-          </View>
 
           <TouchableOpacity style={styles.primaryBtn} onPress={createTreatment}>
             <ThemedText type="defaultSemiBold">{'Add treatment'}</ThemedText>
@@ -989,13 +884,12 @@ export default function ExperimentDetailScreen() {
           <Section title="Images">
           <CellLinePick selectedId={imageCellLineId} onPick={setImageCellLineId} />
           <TextInput style={styles.input} value={imageMagnification} onChangeText={setImageMagnification} placeholder="Magnification (optional, e.g. 10x)" />
-          <TextInput
-            style={[styles.input, styles.multiline]}
+          <ExperimentNotesBlock
             value={imageNotes}
             onChangeText={setImageNotes}
-            placeholder="Notes (optional)"
-            multiline
-            numberOfLines={3}
+            inputStyle={[styles.input, styles.multiline]}
+            placeholder="Notes — include magnification e.g. 10x or 20 x (optional)"
+            onParse={applyImageParse}
           />
 
           <TouchableOpacity style={styles.primaryBtn} onPress={uploadImage}>
@@ -1065,8 +959,6 @@ const styles = StyleSheet.create({
   input: { borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
   multiline: { minHeight: 90, textAlignVertical: 'top' },
   primaryBtn: { marginTop: 6, borderRadius: 999, paddingVertical: 12, paddingHorizontal: 16, alignItems: 'center', borderWidth: 1 },
-  inlineActions: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  secondaryBtn: { borderRadius: 999, paddingVertical: 10, paddingHorizontal: 14, borderWidth: 1, alignItems: 'center' },
   row: { borderRadius: 12, borderWidth: 1, padding: 12, gap: 4 },
   rowLink: { borderRadius: 12, borderWidth: 1, padding: 12, gap: 4 },
 });

@@ -11,8 +11,10 @@ import {
 import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 
+import { ExperimentNotesBlock } from '@/components/experiment-notes-block';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { VoiceInputButton } from '@/components/voice-input';
 import { useCreateCellLine } from '@/hooks/use-create-cell-line';
 import { useCellLineCatalog } from '@/hooks/use-cell-line-catalog';
 import { useCellLineCatalogSearch } from '@/hooks/use-cell-line-catalog-search';
@@ -158,22 +160,13 @@ export default function NewCellLineScreen() {
                 </ThemedText>
               ) : null}
             </View>
-            <View style={styles.nameRow}>
-              <TextInput
-                style={[styles.input, styles.nameInput]}
-                value={name}
-                onChangeText={setName}
-                placeholder="HeLa, HEK293..."
-              />
-              <TouchableOpacity
-                style={styles.micButton}
-                // TODO: Wire to real speech-to-text; for now this is just a stub.
-                onPress={() => {
-                  // No-op placeholder for now
-                }}>
-                <ThemedText type="defaultSemiBold">🎙</ThemedText>
-              </TouchableOpacity>
-            </View>
+            <TextInput
+              style={styles.input}
+              value={name}
+              onChangeText={setName}
+              placeholder="HeLa, HEK293..."
+            />
+            <VoiceInputButton value={name} onChangeText={setName} append={false} />
             {searchResults && searchResults.length > 0 ? (
               <View style={styles.suggestions}>
                 {searchResults.map((result) => (
@@ -238,12 +231,11 @@ export default function NewCellLineScreen() {
           </View>
           <View style={styles.field}>
             <ThemedText>Notes</ThemedText>
-            <TextInput
-              style={[styles.input, styles.notesInput]}
+            <ExperimentNotesBlock
               value={notes}
               onChangeText={setNotes}
-              placeholder="Any important details..."
-              multiline
+              inputStyle={[styles.input, styles.notesInput]}
+              placeholder="Any important details…"
               numberOfLines={4}
             />
           </View>
@@ -307,20 +299,6 @@ const styles = StyleSheet.create({
   },
   catalogTag: {
     fontSize: 12,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  nameInput: {
-    flex: 1,
-  },
-  micButton: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderWidth: 1,
   },
   suggestions: {
     marginTop: 6,

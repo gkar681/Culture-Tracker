@@ -2,8 +2,10 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacit
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 
+import { ExperimentNotesBlock } from '@/components/experiment-notes-block';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { VoiceInputButton } from '@/components/voice-input';
 import { useCellLines } from '@/hooks/use-cell-lines';
 import { useCreateExperiment } from '@/hooks/use-create-experiment';
 
@@ -49,14 +51,14 @@ export default function NewExperimentScreen() {
             onChangeText={setName}
             placeholder="e.g. HeLa drug response - batch 1"
           />
+          <VoiceInputButton value={name} onChangeText={setName} append={false} />
 
           <ThemedText>Description</ThemedText>
-          <TextInput
-            style={[styles.input, styles.multiline]}
+          <ExperimentNotesBlock
             value={description}
             onChangeText={setDescription}
-            placeholder="Optional notes..."
-            multiline
+            inputStyle={[styles.input, styles.multiline]}
+            placeholder="Optional description — dictate or type"
             numberOfLines={3}
           />
 
