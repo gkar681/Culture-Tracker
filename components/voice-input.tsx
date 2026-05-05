@@ -8,6 +8,8 @@ import * as Haptics from 'expo-haptics';
 import * as Linking from 'expo-linking';
 import { requireOptionalNativeModule } from 'expo';
 
+import { normalizeDictationText, SPEECH_CONTEXTUAL_STRINGS } from '@/lib/dictation-normalize';
+
 type Props = {
   value: string;
   onChangeText: (next: string) => void;
@@ -83,8 +85,9 @@ export function VoiceInputButton({ value, onChangeText, append = true, language 
     if (!speechNative) return;
 
     const onResult = (ev: ResultEvent) => {
-      const transcript = ev.results[0]?.transcript?.trim();
-      if (!transcript) return;
+      const raw = ev.results[0]?.transcript?.trim();
+      if (!raw) return;
+      const transcript = normalizeDictationText(raw);
 
       if (appendRef.current) {
         if (!ev.isFinal) return;
@@ -184,6 +187,7 @@ export function VoiceInputButton({ value, onChangeText, append = true, language 
         continuous: true,
         addsPunctuation: true,
         iosTaskHint: 'dictation',
+        contextualStrings: [...SPEECH_CONTEXTUAL_STRINGS],
       });
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Speech recognition failed.';

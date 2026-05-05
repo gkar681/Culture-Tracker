@@ -2,6 +2,7 @@ import { StyleSheet, TextInput, type TextStyle, TouchableOpacity, View, type Sty
 
 import { ThemedText } from '@/components/themed-text';
 import { VoiceInputButton } from '@/components/voice-input';
+import { normalizeDictationText } from '@/lib/dictation-normalize';
 
 type Props = {
   value: string;
@@ -13,6 +14,8 @@ type Props = {
   onParse?: () => void;
   parseLabel?: string;
   voiceAppend?: boolean;
+  /** When true, fixes common ASR splits (e.g. He la → HeLa) when the field loses focus. Default true. */
+  normalizeOnBlur?: boolean;
 };
 
 /**
@@ -27,13 +30,21 @@ export function ExperimentNotesBlock({
   onParse,
   parseLabel = 'Parse notes → fields',
   voiceAppend = true,
+  normalizeOnBlur = true,
 }: Props) {
+  const onBlurNotes = () => {
+    if (!normalizeOnBlur || !value.trim()) return;
+    const next = normalizeDictationText(value);
+    if (next !== value) onChangeText(next);
+  };
+
   return (
     <View style={styles.wrap}>
       <TextInput
         style={inputStyle}
         value={value}
         onChangeText={onChangeText}
+        onBlur={onBlurNotes}
         placeholder={placeholder}
         multiline
         numberOfLines={numberOfLines}

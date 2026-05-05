@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
+import { normalizeDictationText } from '@/lib/dictation-normalize';
+import { supabase } from '@/lib/supabase';
 
 type NewExperimentInput = {
   name: string;
@@ -19,14 +20,19 @@ export function useCreateExperiment() {
   return useMutation({
     mutationFn: async (input: NewExperimentInput) => {
       if (!user) throw new Error('Not authenticated');
-      if (!input.name.trim()) throw new Error('Experiment name is required');
+      const name = normalizeDictationText(input.name).trim();
+      if (!name) throw new Error('Experiment name is required');
       if (!input.cellLineIds.length) throw new Error('Select at least one cell line');
+
+      const description = input.description?.trim()
+        ? normalizeDictationText(input.description).trim()
+        : null;
 
       const { data: exp, error: expError } = await supabase
         .from('experiments')
         .insert({
-          name: input.name.trim(),
-          description: input.description ?? null,
+          name,
+          description,
           status: input.status ?? 'planned',
           start_date: input.start_date ?? null,
           end_date: input.end_date ?? null,

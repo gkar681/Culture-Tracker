@@ -9,6 +9,7 @@ import { ExperimentNotesBlock } from '@/components/experiment-notes-block';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/lib/auth';
+import { normalizeDictationText } from '@/lib/dictation-normalize';
 import {
   parseConditions,
   parseConfluence,
@@ -117,8 +118,9 @@ export default function ExperimentDetailScreen() {
   const [mediaUsed, setMediaUsed] = useState<string>('');
   const [passageNotes, setPassageNotes] = useState<string>('');
   const applyPassageParse = () => {
-    const text = passageNotes;
-    if (!text.trim()) return;
+    if (!passageNotes.trim()) return;
+    const text = normalizeDictationText(passageNotes);
+    if (text !== passageNotes) setPassageNotes(text);
 
     const date = parseIsoDateFromText(text);
     const pn = parsePassageNumber(text);
@@ -171,7 +173,7 @@ export default function ExperimentDetailScreen() {
       split_ratio: splitRatio.trim() || null,
       flask_type: flaskType.trim() || null,
       media_used: mediaUsed.trim() || null,
-      notes: passageNotes.trim() || null,
+      notes: normalizeDictationText(passageNotes).trim() || null,
     };
 
     const { error } = await supabase.from('experiment_passages').insert(payload);
@@ -224,7 +226,7 @@ export default function ExperimentDetailScreen() {
       morphology: morphologyObs.trim() || null,
       confluence: confluenceObs.trim() ? Number(confluenceObs) : null,
       contamination_check: contaminationCheck.trim() || null,
-      notes: observationNotes.trim() || null,
+      notes: normalizeDictationText(observationNotes).trim() || null,
     };
     const { error } = await supabase.from('experiment_observations').insert(payload);
     if (error) throw error;
@@ -236,8 +238,9 @@ export default function ExperimentDetailScreen() {
   };
 
   const applyObservationParse = () => {
-    const text = observationNotes;
-    if (!text.trim()) return;
+    if (!observationNotes.trim()) return;
+    const text = normalizeDictationText(observationNotes);
+    if (text !== observationNotes) setObservationNotes(text);
     const o = parseObservationFromNotes(text);
     if (!morphologyObs.trim() && o.morphology) setMorphologyObs(o.morphology);
     if (!confluenceObs.trim() && o.confluence != null) setConfluenceObs(String(o.confluence));
@@ -253,8 +256,9 @@ export default function ExperimentDetailScreen() {
   const [cultureVolumeMl, setCultureVolumeMl] = useState('');
   const [countNotes, setCountNotes] = useState('');
   const applyCountParse = () => {
-    const text = countNotes;
-    if (!text.trim()) return;
+    if (!countNotes.trim()) return;
+    const text = normalizeDictationText(countNotes);
+    if (text !== countNotes) setCountNotes(text);
     const parsed = parseCountInputs(text);
     if (!rawCount.trim() && parsed.rawCount != null) setRawCount(String(parsed.rawCount));
     if (!dilutionFactor.trim() && parsed.dilutionFactor != null) setDilutionFactor(String(parsed.dilutionFactor));
@@ -313,7 +317,7 @@ export default function ExperimentDetailScreen() {
       viable_percent: viablePercent.trim() ? Number(viablePercent) : null,
       calculated_cells_per_ml: computedCounts.cellsPerMl ?? null,
       calculated_total_cells: computedCounts.totalCells ?? null,
-      notes: countNotes.trim() || null,
+      notes: normalizeDictationText(countNotes).trim() || null,
     };
 
     const { error } = await supabase.from('experiment_cell_counts').insert(payload);
@@ -336,8 +340,9 @@ export default function ExperimentDetailScreen() {
   const [treatmentConditions, setTreatmentConditions] = useState('');
   const [treatmentNotes, setTreatmentNotes] = useState('');
   const applyTreatmentParse = () => {
-    const text = treatmentNotes;
-    if (!text.trim()) return;
+    if (!treatmentNotes.trim()) return;
+    const text = normalizeDictationText(treatmentNotes);
+    if (text !== treatmentNotes) setTreatmentNotes(text);
     const name = parseTreatmentName(text);
     const dose = parseDose(text);
     const hrs = parseExposureHours(text);
@@ -380,7 +385,7 @@ export default function ExperimentDetailScreen() {
       dose: treatmentDose.trim() || null,
       exposure_duration_hours: treatmentExposureHours.trim() ? Number(treatmentExposureHours) : null,
       conditions: treatmentConditions.trim() || null,
-      notes: treatmentNotes.trim() || null,
+      notes: normalizeDictationText(treatmentNotes).trim() || null,
     };
 
     const { error } = await supabase.from('experiment_treatments').insert(payload);
@@ -399,8 +404,9 @@ export default function ExperimentDetailScreen() {
   const [imageNotes, setImageNotes] = useState('');
 
   const applyImageParse = () => {
-    const text = imageNotes;
-    if (!text.trim()) return;
+    if (!imageNotes.trim()) return;
+    const text = normalizeDictationText(imageNotes);
+    if (text !== imageNotes) setImageNotes(text);
     const mag = parseMagnificationFromNotes(text);
     if (!imageMagnification.trim() && mag) setImageMagnification(mag);
   };
@@ -457,7 +463,7 @@ export default function ExperimentDetailScreen() {
       storage_path: storagePath,
       mime_type: mimeType,
       magnification: imageMagnification.trim() || null,
-      notes: imageNotes.trim() || null,
+      notes: normalizeDictationText(imageNotes).trim() || null,
     });
 
     if (insertError) throw insertError;

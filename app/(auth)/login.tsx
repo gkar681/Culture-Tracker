@@ -81,6 +81,7 @@ const styles = StyleSheet.create({
   logoSection: {
     paddingTop: 16,
     alignItems: 'center',
+    borderRadius: 12,
   },
   mainSection: {
     flex: 1,

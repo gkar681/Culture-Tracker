@@ -3,22 +3,27 @@
  * Used by "Parse notes → fields" on passage, observation, count, treatment, and image forms.
  */
 
+import { normalizeDictationText } from './dictation-normalize';
+
 export function normalizeWhitespace(s: string) {
   return s.replace(/\s+/g, ' ').trim();
 }
 
 export function parseIsoDateFromText(text: string) {
-  const m = text.match(/\b(20\d{2})-(\d{2})-(\d{2})\b/);
+  const t = normalizeDictationText(text);
+  const m = t.match(/\b(20\d{2})-(\d{2})-(\d{2})\b/);
   return m ? m[0] : null;
 }
 
 export function parseSplitRatio(text: string) {
-  const m = text.match(/\b(\d+)\s*[:\/]\s*(\d+)\b/);
+  const t = normalizeDictationText(text);
+  const m = t.match(/\b(\d+)\s*[:\/]\s*(\d+)\b/);
   return m ? `${m[1]}:${m[2]}` : null;
 }
 
 export function parseConfluence(text: string) {
-  const m = text.match(/\b(\d{1,3})(?:\s*%|\s*percent)?\s*(?:confluence|confluent)\b/i);
+  const t = normalizeDictationText(text);
+  const m = t.match(/\b(\d{1,3})(?:\s*%|\s*percent)?\s*(?:confluence|confluent)\b/i);
   if (!m) return null;
   const n = Number(m[1]);
   if (!Number.isFinite(n) || n < 0 || n > 100) return null;
@@ -26,51 +31,57 @@ export function parseConfluence(text: string) {
 }
 
 export function parsePassageNumber(text: string) {
-  const m = text.match(/\b(?:p|passage)\s*#?\s*(\d+)\b/i);
+  const t = normalizeDictationText(text);
+  const m = t.match(/\b(?:p|passage)\s*#?\s*(\d+)\b/i);
   if (!m) return null;
   const n = Number(m[1]);
   return Number.isFinite(n) ? n : null;
 }
 
 export function parseFlaskType(text: string) {
+  const t = normalizeDictationText(text);
   const m =
-    text.match(/\b(t-\s*\d+)\b/i) ||
-    text.match(/\b(\d+\s*-\s*well|\d+\s*well)\b/i) ||
-    text.match(/\b(flask\s*[a-z0-9-]+)\b/i);
+    t.match(/\b(t-\s*\d+)\b/i) ||
+    t.match(/\b(\d+\s*-\s*well|\d+\s*well)\b/i) ||
+    t.match(/\b(flask\s*[a-z0-9-]+)\b/i);
   return m ? normalizeWhitespace(m[1]).toUpperCase().replace(/\s+/g, '') : null;
 }
 
 export function parseMedia(text: string) {
-  const m = text.match(/\bmedia\s*[:\-]\s*([a-z0-9+ ./_-]{2,40})/i);
+  const t = normalizeDictationText(text);
+  const m = t.match(/\bmedia\s*[:\-]\s*([a-z0-9+ ./_-]{2,40})/i);
   if (m) return normalizeWhitespace(m[1]);
 
   const common = ['DMEM', 'RPMI', 'DMEM/F12', 'IMDM', 'MEM', 'DMEM F12'];
   for (const c of common) {
-    if (text.toUpperCase().includes(c.replace(' ', ''))) return c.replace(' ', '');
+    if (t.toUpperCase().includes(c.replace(' ', ''))) return c.replace(' ', '');
   }
   return null;
 }
 
 export function parseDose(text: string) {
-  const m = text.match(
+  const t = normalizeDictationText(text);
+  const m = t.match(
     /\b(\d+(?:\.\d+)?)\s*(uM|µM|mM|nM|pM|ng\/mL|ug\/mL|µg\/mL|mg\/mL)\b/i,
   );
   return m ? `${m[1]} ${m[2]}`.replace('uM', 'µM').replace('ug', 'µg') : null;
 }
 
 export function parseExposureHours(text: string) {
-  const m = text.match(/\b(?:for|duration|exposure)\s*(\d+(?:\.\d+)?)\s*(h|hr|hrs|hours)\b/i);
+  const t = normalizeDictationText(text);
+  const m = t.match(/\b(?:for|duration|exposure)\s*(\d+(?:\.\d+)?)\s*(h|hr|hrs|hours)\b/i);
   if (!m) return null;
   const n = Number(m[1]);
   return Number.isFinite(n) ? n : null;
 }
 
 export function parseConditions(text: string) {
+  const t = normalizeDictationText(text);
   const parts: string[] = [];
-  if (/\b37\s*°?\s*c\b/i.test(text)) parts.push('37°C');
-  if (/\b5\s*%?\s*(co2|co₂)\b/i.test(text)) parts.push('5% CO₂');
-  if (/\b\d+\s*%?\s*(co2|co₂)\b/i.test(text) && !parts.includes('5% CO₂')) {
-    const m = text.match(/\b(\d+)\s*%?\s*(co2|co₂)\b/i);
+  if (/\b37\s*°?\s*c\b/i.test(t)) parts.push('37°C');
+  if (/\b5\s*%?\s*(co2|co₂)\b/i.test(t)) parts.push('5% CO₂');
+  if (/\b\d+\s*%?\s*(co2|co₂)\b/i.test(t) && !parts.includes('5% CO₂')) {
+    const m = t.match(/\b(\d+)\s*%?\s*(co2|co₂)\b/i);
     if (m) parts.push(`${m[1]}% CO₂`);
   }
   return parts.length ? parts.join(', ') : null;
@@ -85,15 +96,16 @@ export type ParsedCountInputs = {
 };
 
 export function parseCountInputs(text: string): ParsedCountInputs {
-  const t = text;
+  const t = normalizeDictationText(text);
   const raw =
     t.match(/\braw\s*count\s*[:\-]?\s*(\d+)\b/i) || t.match(/\bcount\s*[:\-]?\s*(\d+)\b/i);
   const dilution =
     t.match(/\b(?:dilution|diluted)\s*(?:factor)?\s*[:\-]?\s*(\d+(?:\.\d+)?)\b/i) ||
     t.match(/\bdf\s*[:\-]?\s*(\d+(?:\.\d+)?)\b/i);
   const vol =
-    t.match(/\b(?:volume\s*counted|counted\s*volume|volume)\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*(?:u?l|µl)\b/i) ||
-    t.match(/\b(\d+(?:\.\d+)?)\s*(?:u?l|µl)\s*(?:counted)\b/i);
+    t.match(
+      /\b(?:volume\s*counted|counted\s*volume|volume)\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*(?:u?l|µl|microliters?)\b/i,
+    ) || t.match(/\b(\d+(?:\.\d+)?)\s*(?:u?l|µl|microliters?)\s*(?:counted)\b/i);
   const viable = t.match(/\b(\d+(?:\.\d+)?)\s*%?\s*(?:viable|viability)\b/i);
   const cultureVol = t.match(/\b(?:culture|total)\s*volume\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*ml\b/i);
 
@@ -109,7 +121,8 @@ export function parseCountInputs(text: string): ParsedCountInputs {
 }
 
 export function parseTreatmentName(text: string) {
-  const m = text.match(/\b(?:treated\s+with|treat(?:ment)?\s*[:\-]?)\s*([a-z0-9 _-]{2,40})/i);
+  const t = normalizeDictationText(text);
+  const m = t.match(/\b(?:treated\s+with|treat(?:ment)?\s*[:\-]?)\s*([a-z0-9 _-]{2,40})/i);
   if (!m) return null;
   const candidate = m[1].split(/\b\d/)[0];
   return normalizeWhitespace(candidate);
@@ -130,31 +143,33 @@ export type ParsedObservationNotes = {
 
 /** Fills morphology, confluence %, and contamination from a single notes blob. */
 export function parseObservationFromNotes(text: string): ParsedObservationNotes {
+  const t = normalizeDictationText(text);
   let morphology: string | null = null;
-  const morphLabel = text.match(/\bmorphology\s*[:\-]\s*([a-z0-9 ,/-]{2,50})/i);
+  const morphLabel = t.match(/\bmorphology\s*[:\-]\s*([a-z0-9 ,/-]{2,50})/i);
   if (morphLabel) morphology = normalizeWhitespace(morphLabel[1]);
-  else if (/\bmorphology\s*healthy\b/i.test(text) || /\bhealthy\s+morphology\b/i.test(text)) morphology = 'healthy';
-  else if (/\bstressed\b/i.test(text)) morphology = 'stressed';
-  else if (/\bconfluent\b/i.test(text) && !/\d+\s*%/.test(text)) morphology = 'confluent';
-  else if (/\badherent\b/i.test(text)) morphology = 'adherent';
+  else if (/\bmorphology\s*healthy\b/i.test(t) || /\bhealthy\s+morphology\b/i.test(t)) morphology = 'healthy';
+  else if (/\bstressed\b/i.test(t)) morphology = 'stressed';
+  else if (/\bconfluent\b/i.test(t) && !/\d+\s*%/.test(t)) morphology = 'confluent';
+  else if (/\badherent\b/i.test(t)) morphology = 'adherent';
 
-  const confluence = parseConfluence(text);
+  const confluence = parseConfluence(t);
 
   let contaminationCheck: string | null = null;
-  const contLabel = text.match(/\bcontamination\s*[:\-]\s*([^.;\n]{2,100})/i);
+  const contLabel = t.match(/\bcontamination\s*[:\-]\s*([^.;\n]{2,100})/i);
   if (contLabel) contaminationCheck = normalizeWhitespace(contLabel[1]);
-  else if (/\bno\s+contamination\b/i.test(text) || /\bcontamination\s+negative\b/i.test(text))
+  else if (/\bno\s+contamination\b/i.test(t) || /\bcontamination\s+negative\b/i.test(t))
     contaminationCheck = 'Negative';
-  else if (/\bcontamination\s+positive\b/i.test(text) || /\bpositive\s+for\s+contamination\b/i.test(text))
+  else if (/\bcontamination\s+positive\b/i.test(t) || /\bpositive\s+for\s+contamination\b/i.test(t))
     contaminationCheck = 'Positive';
-  else if (/\bmycoplasma\s+negative\b/i.test(text)) contaminationCheck = 'Mycoplasma negative';
+  else if (/\bmycoplasma\s+negative\b/i.test(t)) contaminationCheck = 'Mycoplasma negative';
 
   return { morphology, confluence, contaminationCheck };
 }
 
 export function parseMagnificationFromNotes(text: string): string | null {
+  const t = normalizeDictationText(text);
   const m =
-    text.match(/\b(?:at|magnification)\s+(\d+)\s*x\b/i) ||
-    text.match(/\b(\d+)\s*x\s*(?:magnification)?\b/i);
+    t.match(/\b(?:at|magnification)\s+(\d+)\s*x\b/i) ||
+    t.match(/\b(\d+)\s*x\s*(?:magnification)?\b/i);
   return m ? `${m[1]}x` : null;
 }

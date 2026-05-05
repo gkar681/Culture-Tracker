@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
+import { normalizeDictationText } from '@/lib/dictation-normalize';
+import { supabase } from '@/lib/supabase';
 
 type NewCellLineInput = {
   name: string;
@@ -22,15 +23,18 @@ export function useCreateCellLine() {
         throw new Error('You must be logged in to create a cell line.');
       }
 
+      const name = normalizeDictationText(input.name).trim();
+      const notes = input.notes?.trim() ? normalizeDictationText(input.notes).trim() : null;
+
       const { data, error } = await supabase
         .from('cell_lines')
         .insert({
-          name: input.name,
+          name,
           organism: input.organism ?? null,
           tissue_type: input.tissue_type ?? null,
           morphology: input.morphology ?? null,
           doubling_time_hours: input.doubling_time_hours ?? null,
-          notes: input.notes ?? null,
+          notes,
           created_by: user.id,
         })
         .select()

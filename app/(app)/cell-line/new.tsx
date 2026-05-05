@@ -15,6 +15,7 @@ import { ExperimentNotesBlock } from '@/components/experiment-notes-block';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { VoiceInputButton } from '@/components/voice-input';
+import { normalizeDictationText } from '@/lib/dictation-normalize';
 import { useCreateCellLine } from '@/hooks/use-create-cell-line';
 import { useCellLineCatalog } from '@/hooks/use-cell-line-catalog';
 import { useCellLineCatalogSearch } from '@/hooks/use-cell-line-catalog-search';
@@ -50,12 +51,12 @@ export default function NewCellLineScreen() {
   }, [catalogMatch]);
 
   const buildPayload = () => ({
-    name: name.trim(),
+    name: normalizeDictationText(name).trim(),
     organism: organism.trim() || undefined,
     tissue_type: tissueType.trim() || undefined,
     morphology: morphology.trim() || undefined,
     doubling_time_hours: doublingTime ? Number(doublingTime) : null,
-    notes: notes.trim() || undefined,
+    notes: notes.trim() ? normalizeDictationText(notes).trim() : undefined,
   });
 
   const maybeSaveTemplate = async (payload: ReturnType<typeof buildPayload>) => {
@@ -164,6 +165,10 @@ export default function NewCellLineScreen() {
               style={styles.input}
               value={name}
               onChangeText={setName}
+              onBlur={() => {
+                const next = normalizeDictationText(name);
+                if (next !== name) setName(next);
+              }}
               placeholder="HeLa, HEK293..."
             />
             <VoiceInputButton value={name} onChangeText={setName} append={false} />

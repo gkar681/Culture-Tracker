@@ -6,6 +6,7 @@ import { ExperimentNotesBlock } from '@/components/experiment-notes-block';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { VoiceInputButton } from '@/components/voice-input';
+import { normalizeDictationText } from '@/lib/dictation-normalize';
 import { useCellLines } from '@/hooks/use-cell-lines';
 import { useCreateExperiment } from '@/hooks/use-create-experiment';
 
@@ -49,6 +50,10 @@ export default function NewExperimentScreen() {
             style={styles.input}
             value={name}
             onChangeText={setName}
+            onBlur={() => {
+              const next = normalizeDictationText(name);
+              if (next !== name) setName(next);
+            }}
             placeholder="e.g. HeLa drug response - batch 1"
           />
           <VoiceInputButton value={name} onChangeText={setName} append={false} />
@@ -64,12 +69,12 @@ export default function NewExperimentScreen() {
 
           <ThemedText>Status</ThemedText>
           <ThemedView style={styles.segmentRow}>
-            {(['planned', 'in_progress', 'completed'] as const).map((s) => (
+            {(['Planned', 'In Progress', 'Completed'] as const).map((s) => (
               <TouchableOpacity
                 key={s}
-                style={[styles.segment, status === s && styles.segmentActive]}
-                onPress={() => setStatus(s)}>
-                <ThemedText style={status === s ? styles.segmentTextActive : undefined}>{s}</ThemedText>
+                style={[styles.segment, status === s.toLowerCase() && styles.segmentActive]}
+                onPress={() => setStatus(s.toLowerCase() as any)}>
+                <ThemedText style={status === s.toLowerCase() ? styles.segmentTextActive : undefined}>{s}</ThemedText>
               </TouchableOpacity>
             ))}
           </ThemedView>
@@ -127,7 +132,7 @@ export default function NewExperimentScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
   content: { gap: 10, paddingBottom: 32 },
-  input: { borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
+  input: { borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, fontFamily: 'PlayfairDisplay_400Regular', color: 'white' },
   multiline: { minHeight: 72, textAlignVertical: 'top' },
   sectionTitle: { marginTop: 10 },
   segmentRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
