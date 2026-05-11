@@ -1,50 +1,59 @@
-# Welcome to your Expo app 👋
+# Culture Tracker
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A mobile app for molecular biologists to log, track, and analyse their cell culture work — built by someone who has actually done cell culture and got tired of spreadsheets.
 
-## Get started
+---
 
-1. Install dependencies
+## The Problem
 
-   ```bash
-   npm install
-   ```
+Cell culture is meticulous, repetitive, and unforgiving. Passage numbers get miscounted. Media change schedules slip. Freeze/thaw histories live in lab notebooks that nobody can find. Reagent lot numbers get lost between experiments. When something goes wrong — contamination, unexpected senescence, inconsistent growth — reconstructing what happened is painful, and often impossible.
 
-2. Start the app
+Most labs are still tracking this in Excel, paper notebooks, or memory. None of those options are good enough.
 
-   ```bash
-   npx expo start
-   ```
+---
 
-In the output, you'll find options to open the app in a
+## What Culture Tracker Does
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+A mobile-first cell culture management app built in React Native (Expo) with a Supabase backend. Designed to be fast to log and easy to query — including an AI chat interface so you can record updates the way you'd say them out loud, without filling in forms.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+**Cell Line Management**
+- Full cell line profiles: source, species, tissue type, culture conditions
+- Passage history with automatic passage number tracking
+- Freeze/thaw logs linked to specific vials and passage numbers
+- Growth characteristic notes per line
 
-## Get a fresh project
+**Daily Culture Logging**
+- Media change logs with date, reagent lots, and notes
+- Confluence estimates and morphology observations
+- Automatic calculation of days in culture, passages since thaw, and recommended split windows
 
-When you're ready, run:
+**Reagents & Protocols**
+- Reagent inventory with lot numbers and expiry tracking
+- Protocol library attached to specific cell lines
+- Full traceability: which reagent lot was used on which cells, when
 
-```bash
-npm run reset-project
-```
+**Analytics & Visualisations**
+- Passage growth curves
+- Media change frequency charts
+- Culture health trends over time
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-## Learn more
+## Tech Stack
 
-To learn more about developing your project with Expo, look at the following resources:
+- **Frontend:** React Native (Expo), TypeScript, Expo Router
+- **Backend:** Supabase (PostgreSQL + Auth + Row Level Security)
+- **Charts:** [charting library]
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
 
-## Join the community
+---
 
-Join our community of developers creating universal apps.
+## Status
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+In active development. Core logging and tracking features are functional. AI chat interface is the next major milestone.
+
+---
+
+## Background
+
+Built out of direct frustration with cell culture record-keeping during research in cellular senescence and retinal biology. The workflows researchers actually use — handwritten notes, colour-coded spreadsheets, WhatsApp messages to labmates — are not fit for purpose. This is an attempt to fix that.
