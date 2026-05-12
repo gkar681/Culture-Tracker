@@ -28,6 +28,12 @@ export default function AppLayout() {
           }}
         />
         <Stack.Screen
+          name="chat"
+          options={{
+            title: 'Chat',
+          }}
+        />
+        <Stack.Screen
           name="experiment/[id]"
           options={{
             title: 'Experiment',

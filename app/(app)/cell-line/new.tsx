@@ -7,6 +7,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
@@ -21,6 +22,7 @@ import { useCellLineCatalog } from '@/hooks/use-cell-line-catalog';
 import { useCellLineCatalogSearch } from '@/hooks/use-cell-line-catalog-search';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
+import ChatThread from '@/components/chat/chat-thread';
 
 export default function NewCellLineScreen() {
   const router = useRouter();
@@ -33,6 +35,7 @@ export default function NewCellLineScreen() {
   const [doublingTime, setDoublingTime] = useState('');
   const [notes, setNotes] = useState('');
   const [saveAsTemplate, setSaveAsTemplate] = useState(true);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const { data: catalogMatch } = useCellLineCatalog(name);
   const { data: searchResults } = useCellLineCatalogSearch(name);
@@ -49,6 +52,16 @@ export default function NewCellLineScreen() {
       prev || (catalogMatch.typical_doubling_hrs != null ? String(catalogMatch.typical_doubling_hrs) : ''),
     );
   }, [catalogMatch]);
+
+  const handleChatComplete = (data: Record<string, any>) => {
+    if (data.cellType) setName(String(data.cellType));
+    if (data.organism) setOrganism(String(data.organism));
+    if (data.tissue) setTissueType(String(data.tissue));
+    if (data.morphology) setMorphology(String(data.morphology));
+    if (data.doublingTime) setDoublingTime(String(data.doublingTime));
+    if (data.notes) setNotes(String(data.notes));
+    setIsChatOpen(false);
+  };
 
   const buildPayload = () => ({
     name: normalizeDictationText(name).trim(),
@@ -187,6 +200,11 @@ export default function NewCellLineScreen() {
                 ))}
               </View>
             ) : null}
+            <View>
+              <TouchableOpacity onPress={() => setIsChatOpen(true)} style={[styles.actionButton, styles.secondaryButton]}>
+                <ThemedText type="defaultSemiBold">Voice chat</ThemedText>
+              </TouchableOpacity>
+            </View>
           </View>
           {!catalogMatch ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }} >
@@ -268,6 +286,17 @@ export default function NewCellLineScreen() {
             </ThemedText>
           </View>
         </ScrollView>
+        <Modal visible={isChatOpen} animationType="slide" presentationStyle="overFullScreen">
+          <View style={styles.chatModalContainer}>
+            <View style={styles.chatModalHeader}>
+              <ThemedText type="title">Voice chat</ThemedText>
+              <TouchableOpacity onPress={() => setIsChatOpen(false)} style={styles.chatModalClose}>
+                <ThemedText>Close</ThemedText>
+              </TouchableOpacity>
+            </View>
+            <ChatThread onComplete={handleChatComplete} onCancel={() => setIsChatOpen(false)} />
+          </View>
+        </Modal>
       </ThemedView>
     </KeyboardAvoidingView>
   );
@@ -290,7 +319,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: 'white',
+    color: 'indigo',
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   notesInput: {
@@ -349,5 +378,9 @@ const styles = StyleSheet.create({
   attachButtonText: {
     textAlign: 'center',
   },
+  actionButton: { borderRadius: 999, paddingVertical: 12, paddingHorizontal: 16, alignItems: 'center' },
+  chatModalContainer: { flex: 1, backgroundColor: '#090909', paddingTop: Platform.OS === 'ios' ? 50 : 20 },
+  chatModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#222' },
+  chatModalClose: { padding: 8 },
 });
 

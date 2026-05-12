@@ -1,4 +1,4 @@
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { View, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 
@@ -9,6 +9,7 @@ import { VoiceInputButton } from '@/components/voice-input';
 import { normalizeDictationText } from '@/lib/dictation-normalize';
 import { useCellLines } from '@/hooks/use-cell-lines';
 import { useCreateExperiment } from '@/hooks/use-create-experiment';
+import ChatThread from '@/components/chat/chat-thread';
 
 function todayIso() {
   const d = new Date();
@@ -28,6 +29,7 @@ export default function NewExperimentScreen() {
   const [status, setStatus] = useState<'planned' | 'in_progress' | 'completed'>('planned');
   const [startDate, setStartDate] = useState(todayIso());
   const [selectedCellLineIds, setSelectedCellLineIds] = useState<string[]>([]);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const toggleCellLine = (id: string) => {
     setSelectedCellLineIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -38,6 +40,26 @@ export default function NewExperimentScreen() {
   const buttonDisabled = createExperiment.isPending || selectedCount === 0 || !name.trim();
 
   const canShowCellLines = !loadingCellLines && !!cellLines && !isError;
+
+  const handleChatComplete = (data: Record<string, any>) => {
+    if (data.experimentName) setName(String(data.experimentName));
+    if (data.description) setDescription(String(data.description));
+
+    if (data.status) {
+      const normalized = String(data.status).toLowerCase();
+      if (normalized.includes('planned')) setStatus('planned');
+      else if (normalized.includes('completed')) setStatus('completed');
+      else if (normalized.includes('progress') || normalized.includes('in progress')) setStatus('in_progress');
+    }
+
+    if (data.startdate) setStartDate(String(data.startdate));
+    setIsChatOpen(false);
+  };
+
+  
+
+
+
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.select({ ios: 'padding', android: undefined })}>
@@ -57,13 +79,18 @@ export default function NewExperimentScreen() {
             placeholder="e.g. HeLa drug response - batch 1"
           />
           <VoiceInputButton value={name} onChangeText={setName} append={false} />
+          
+          <View>
+            <TouchableOpacity onPress={() => setIsChatOpen(true)} style={[styles.actionButton, styles.secondaryButton]}> 
+              <ThemedText type="defaultSemiBold">Voice chat</ThemedText>
+            </TouchableOpacity>
+          </View>
 
           <ThemedText>Description</ThemedText>
           <ExperimentNotesBlock
             value={description}
             onChangeText={setDescription}
             inputStyle={[styles.input, styles.multiline]}
-            placeholder="Optional description — dictate or type"
             numberOfLines={3}
           />
 
@@ -119,11 +146,22 @@ export default function NewExperimentScreen() {
                   cellLineIds: selectedCellLineIds,
                 }).then(() => router.back())
               }
-              style={[styles.actionButton, styles.primaryButton, buttonDisabled && styles.actionButtonDisabled]}>
+              style={[styles.actionButton, buttonDisabled && styles.actionButtonDisabled]}>
               <ThemedText type="defaultSemiBold">{createExperiment.isPending ? 'Creating…' : 'Create experiment'}</ThemedText>
             </TouchableOpacity>
           </ThemedView>
         </ScrollView>
+      <Modal visible={isChatOpen} animationType="slide" presentationStyle="overFullScreen">
+        <View style={styles.chatModalContainer}>
+          <View style={styles.chatModalHeader}>
+            <ThemedText type="title">Voice chat</ThemedText>
+            <TouchableOpacity onPress={() => setIsChatOpen(false)} style={styles.chatModalClose}>
+              <ThemedText>Close</ThemedText>
+            </TouchableOpacity>
+          </View>
+          <ChatThread onComplete={handleChatComplete} onCancel={() => setIsChatOpen(false)} />
+        </View>
+      </Modal>
       </ThemedView>
     </KeyboardAvoidingView>
   );
@@ -132,7 +170,7 @@ export default function NewExperimentScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
   content: { gap: 10, paddingBottom: 32 },
-  input: { borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, fontFamily: 'PlayfairDisplay_400Regular', color: 'white' },
+  input: { borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, fontFamily: 'PlayfairDisplay_400Regular', color: 'indigo' },
   multiline: { minHeight: 72, textAlignVertical: 'top' },
   sectionTitle: { marginTop: 10 },
   segmentRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
@@ -146,6 +184,9 @@ const styles = StyleSheet.create({
   actionButton: { borderRadius: 999, paddingVertical: 12, paddingHorizontal: 16, alignItems: 'center' },
   secondaryButton: { borderWidth: 1 },
   primaryButton: { fontWeight: '600' },
+  chatModalContainer: { flex: 1, backgroundColor: '#090909', paddingTop: Platform.OS === 'ios' ? 50 : 20 },
+  chatModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#222' },
+  chatModalClose: { padding: 8 },
   actionButtonDisabled: { opacity: 0.6 },
 });
 

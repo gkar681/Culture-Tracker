@@ -25,7 +25,7 @@ export function ExperimentNotesBlock({
   value,
   onChangeText,
   inputStyle,
-  placeholder = 'Notes — dictate or type; use Parse to fill fields above',
+  placeholder = 'Notes — dictate or type',
   numberOfLines = 3,
   onParse,
   parseLabel = 'Parse notes → fields',
