@@ -20,7 +20,7 @@ import { setCompletedOnboarding } from '@/lib/onboarding';
 
 const LOGO = require('@/assets/images/CultureTrackerLogo.png');
 
-type IconName = 'layers' | 'science' | 'edit_note' | 'insights';
+type IconName = 'layers' | 'science' | 'edit-note' | 'insights';
 
 type Page =
   | {
@@ -61,7 +61,7 @@ const PAGES: Page[] = [
   {
     key: 'logging',
     variant: 'icon',
-    icon: 'edit_note',
+    icon: 'edit-note',
     title: 'Log what you do',
     body: 'Inside an experiment, record passages, observations, counts, treatments, and images. Use the section tabs to stay focused.',
   },

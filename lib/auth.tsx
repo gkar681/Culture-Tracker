@@ -149,7 +149,7 @@ export function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (session) {
-    if (segments.includes('reset-password')) {
+    if ((segments as string[]).includes('reset-password')) {
       return <>{children}</>;
     }
     if (passwordRecoveryPending) {

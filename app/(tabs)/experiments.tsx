@@ -16,7 +16,7 @@ export default function ExperimentsScreen() {
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => router.push('/(app)/experiment/new')}>
-          <ThemedText type="defaultSemiBold">+ New</ThemedText>
+          <ThemedText style={styles.addButtonText}>+ New</ThemedText>
         </TouchableOpacity>
       </ThemedView>
 
@@ -54,26 +54,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 16,
   },
   listContent: {
-    gap: 12,
+    gap: 16,
     paddingVertical: 8,
   },
   card: {
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
-    gap: 4,
+    borderColor: '#E2E8F0',
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   addButton: {
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#340D0E', // Brand dark red/brown
+  },
+  addButtonText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
   },
   errorText: {
-    color: 'red',
+    color: '#EF4444',
     marginBottom: 8,
   },
 });

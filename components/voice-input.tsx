@@ -1,13 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
-
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
 import * as Linking from 'expo-linking';
-import { requireOptionalNativeModule } from 'expo';
+import { useEffect, useRef, useState } from 'react';
+import { Platform, Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
 import { normalizeDictationText, SPEECH_CONTEXTUAL_STRINGS } from '@/lib/dictation-normalize';
 
 type Props = {
@@ -17,62 +16,16 @@ type Props = {
   language?: string;
 };
 
-type ResultEvent = {
-  isFinal: boolean;
-  results: { transcript: string }[];
-};
-
-type ErrorEvent = { message?: string; error?: string };
-
-type SpeechModule = {
-  addListener: (event: string, listener: (...args: unknown[]) => void) => { remove: () => void };
-  start: (options: Record<string, unknown>) => void;
-  stop: () => void;
-  requestPermissionsAsync: () => Promise<{ granted: boolean; restricted?: boolean }>;
-  requestMicrophonePermissionsAsync: () => Promise<{ granted: boolean }>;
-  requestSpeechRecognizerPermissionsAsync: () => Promise<{ granted: boolean; restricted?: boolean }>;
-  isRecognitionAvailable: () => boolean;
-};
-
-const speechNative = requireOptionalNativeModule<SpeechModule>('ExpoSpeechRecognition');
-
-/**
- * iOS: combined `requestPermissionsAsync` can skip the mic prompt if speech isn’t authorized first.
- * Request microphone, then speech recognition.
- */
-async function requestSpeechAndMicPermissions(mod: SpeechModule): Promise<{
-  granted: boolean;
-  restricted?: boolean;
-  micDenied?: boolean;
-  speechDenied?: boolean;
-}> {
-  if (Platform.OS === 'ios') {
-    const mic = await mod.requestMicrophonePermissionsAsync();
-    if (!mic.granted) {
-      return { granted: false, micDenied: true };
-    }
-    const speech = await mod.requestSpeechRecognizerPermissionsAsync();
-    const restricted = 'restricted' in speech && Boolean(speech.restricted);
-    if (!speech.granted) {
-      return { granted: false, restricted, speechDenied: !restricted };
-    }
-    return { granted: true };
-  }
-
-  const combined = await mod.requestPermissionsAsync();
-  const restricted = 'restricted' in combined && Boolean(combined.restricted);
-  return {
-    granted: combined.granted,
-    restricted,
-  };
-}
-
 export function VoiceInputButton({ value, onChangeText, append = true, language = 'en-US' }: Props) {
   const [listening, setListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showOpenSettings, setShowOpenSettings] = useState(false);
+  
   const listeningRef = useRef(false);
-  const accumulatedRef = useRef('');
+  const ignoreResultsRef = useRef(false);
+  
+  /** For append mode: text committed from `isFinal` segments only */
+  const committedRef = useRef('');
   const valueRef = useRef(value);
   const appendRef = useRef(append);
   const onChangeTextRef = useRef(onChangeText);
@@ -82,106 +35,82 @@ export function VoiceInputButton({ value, onChangeText, append = true, language 
   onChangeTextRef.current = onChangeText;
 
   useEffect(() => {
-    if (!speechNative) return;
+    listeningRef.current = listening;
+  }, [listening]);
 
-    const onResult = (ev: ResultEvent) => {
-      const raw = ev.results[0]?.transcript?.trim();
-      if (!raw) return;
-      const transcript = normalizeDictationText(raw);
+  useSpeechRecognitionEvent('result', (ev) => {
+    if (ignoreResultsRef.current) return;
+    const raw = ev.results[0]?.transcript?.trim();
+    if (!raw) return;
 
-      if (appendRef.current) {
-        if (!ev.isFinal) return;
-        accumulatedRef.current = accumulatedRef.current
-          ? `${accumulatedRef.current} ${transcript}`
-          : transcript;
-        onChangeTextRef.current(accumulatedRef.current);
-      } else {
-        onChangeTextRef.current(transcript);
-      }
-    };
+    const transcript = normalizeDictationText(raw);
+    if (!transcript) return;
 
-    const onError = (ev: ErrorEvent) => {
-      setError(ev.message || ev.error || 'Speech recognition error.');
-      setListening(false);
-      listeningRef.current = false;
-    };
+    if (!appendRef.current) {
+      onChangeTextRef.current(transcript);
+      return;
+    }
 
-    const onEnd = () => {
-      setListening(false);
-      listeningRef.current = false;
-    };
+    if (ev.isFinal) {
+      committedRef.current = committedRef.current ? `${committedRef.current} ${transcript}` : transcript;
+      onChangeTextRef.current(committedRef.current);
+    } else {
+      const combined = committedRef.current ? `${committedRef.current} ${transcript}` : transcript;
+      onChangeTextRef.current(combined);
+    }
+  });
 
-    const subR = speechNative.addListener('result', onResult as (...args: unknown[]) => void);
-    const subE = speechNative.addListener('error', onError as (...args: unknown[]) => void);
-    const subEnd = speechNative.addListener('end', onEnd);
+  useSpeechRecognitionEvent('error', (ev) => {
+    if (ev.error === 'aborted') return;
+    setError(ev.message || 'Speech recognition error.');
+    setListening(false);
+    listeningRef.current = false;
+    ignoreResultsRef.current = true;
+  });
 
-    return () => {
-      subR.remove();
-      subE.remove();
-      subEnd.remove();
-      speechNative.stop?.();
-    };
-  }, []);
+  useSpeechRecognitionEvent('end', () => {
+    setListening(false);
+    listeningRef.current = false;
+  });
+
+  const killRecognition = () => {
+    ignoreResultsRef.current = true;
+    listeningRef.current = false;
+    setListening(false);
+    ExpoSpeechRecognitionModule.abort();
+  };
 
   const toggle = async () => {
     setError(null);
     setShowOpenSettings(false);
 
-    if (!speechNative) {
-      const inExpoGo = Constants.appOwnership === 'expo' && Platform.OS !== 'web';
-      setError(
-        inExpoGo
-          ? 'Voice input needs a development build (Expo Go does not include native speech). Run: npx expo run:ios'
-          : 'Native speech recognition is missing from this build. Run npx expo prebuild && npx expo run:ios (or EAS Build) after adding expo-speech-recognition.',
-      );
-      return;
-    }
-
     try {
       if (listeningRef.current) {
-        speechNative.stop();
-        setListening(false);
-        listeningRef.current = false;
+        killRecognition();
         return;
       }
 
-      const perm = await requestSpeechAndMicPermissions(speechNative);
+      // Using the official V3 API for permissions
+      const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      
       if (!perm.granted) {
-        if (perm.restricted) {
-          setError(
-            'Speech recognition is restricted on this device. Check Settings → Screen Time → Content & Privacy Restrictions.',
-          );
-        } else if (perm.micDenied) {
-          setShowOpenSettings(true);
-          setError(
-            'Microphone access is off. Tap Open Settings → CultureTracker → enable Microphone, then try again.',
-          );
-        } else if (perm.speechDenied) {
-          setShowOpenSettings(true);
-          setError(
-            'Speech recognition is off. Tap Open Settings → CultureTracker → enable Speech Recognition, then try again.',
-          );
-        } else {
-          setShowOpenSettings(true);
-          setError(
-            Platform.OS === 'android'
-              ? 'Microphone permission is off. Tap Open Settings → CultureTracker → Permissions → allow Microphone.'
-              : 'Allow microphone and speech recognition for CultureTracker in Settings.',
-          );
-        }
+        setShowOpenSettings(true);
+        setError('Allow microphone and speech recognition for CultureTracker in Settings.');
         return;
       }
 
-      if (!speechNative.isRecognitionAvailable()) {
+      const available = ExpoSpeechRecognitionModule.isRecognitionAvailable();
+      if (!available) {
         setError('Speech recognition is not available on this device.');
         return;
       }
 
-      accumulatedRef.current = appendRef.current ? valueRef.current : '';
+      ignoreResultsRef.current = false;
+      committedRef.current = appendRef.current ? valueRef.current.trimEnd() : '';
       listeningRef.current = true;
       setListening(true);
 
-      speechNative.start({
+      ExpoSpeechRecognitionModule.start({
         lang: language,
         interimResults: true,
         continuous: true,
@@ -192,8 +121,7 @@ export function VoiceInputButton({ value, onChangeText, append = true, language 
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Speech recognition failed.';
       setError(message);
-      setListening(false);
-      listeningRef.current = false;
+      killRecognition();
     }
   };
 
@@ -215,7 +143,7 @@ export function VoiceInputButton({ value, onChangeText, append = true, language 
           pressed && styles.buttonPressed,
         ]}
       >
-        <ThemedText type="defaultSemiBold" pointerEvents="none">
+        <ThemedText type="defaultSemiBold" pointerEvents="none" style={listening ? {color: '#FFFFFF'} : {}}>
           {listening ? 'Stop dictation' : '🎙 Dictate'}
         </ThemedText>
       </Pressable>
@@ -249,9 +177,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     borderWidth: 1,
+    borderColor: '#0EA5E9',
   },
   buttonActive: {
     borderWidth: 2,
+    backgroundColor: '#0EA5E9',
+    borderColor: '#0EA5E9',
   },
   buttonPressed: {
     opacity: 0.85,
@@ -260,7 +191,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     padding: 10,
+    borderColor: '#EF4444',
   },
-  errorText: { color: 'red' },
+  errorText: { color: '#EF4444' },
   settingsLink: { marginTop: 8, alignSelf: 'flex-start' },
 });

@@ -21,6 +21,10 @@
       }
     },
     "android": {
+      "package": "com.gayakar.CultureTrackerV1",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -41,7 +45,9 @@
         {
           "microphonePermission": "CultureTracker needs microphone access to capture your voice when you dictate notes.",
           "speechRecognitionPermission": "CultureTracker uses speech recognition to turn your spoken words into text in your experiment notes.",
-          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
         }
       ],
       [
@@ -55,7 +61,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -18,8 +18,7 @@ export function ThemedText({
   type = 'default',
   ...rest
 }: ThemedTextProps) {
-  //const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
-  const color = '#340D0E';
+  const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
 
   const [fontsLoaded] = useFonts({
     PlayfairDisplay_400Regular,
@@ -52,13 +51,13 @@ const styles = StyleSheet.create({
   default: {
     fontSize: 16,
     lineHeight: 24,
-    fontFamily: 'PlayFairDisplay_400Regular',
+    fontFamily: 'PlayfairDisplay_400Regular',
   },
   defaultSemiBold: {
     fontSize: 16,
     lineHeight: 24,
     fontWeight: '600',
-    fontFamily: 'PlayFairDisplay_700Bold',
+    fontFamily: 'PlayfairDisplay_700Bold',
   },
   title: {
     fontSize: 32,
@@ -74,7 +73,8 @@ const styles = StyleSheet.create({
   link: {
     lineHeight: 30,
     fontSize: 16,
-    color: '#0a7ea4',
+    color: '#340D0E',
     fontFamily: 'Oswald_400Regular',
+    textDecorationLine: 'underline',
   },
 });

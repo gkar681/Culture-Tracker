@@ -79,7 +79,7 @@ export default function ExperimentDetailScreen() {
         .eq('experiment_id', experimentId)
         .order('created_at', { ascending: true });
       if (error) throw error;
-      return (data ?? []) as ExperimentCellLineRow[];
+      return (data ?? []) as any as ExperimentCellLineRow[];
     },
   });
 
@@ -622,13 +622,13 @@ export default function ExperimentDetailScreen() {
                 <VictoryAxis
                   fixLabelOverlap
                   style={{ tickLabels: { fontSize: 10, padding: 3 } }}
-                  tickFormat={(t) => {
+                  tickFormat={(t: any) => {
                     const d = new Date(t as any);
                     // show MM-DD
                     return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                   }}
                 />
-                <VictoryAxis dependentAxis tickFormat={(t) => `${t}`} />
+                <VictoryAxis dependentAxis tickFormat={(t: any) => `${t}`} />
                 <VictoryLine
                   data={confluenceSeries}
                   x="x"
@@ -664,12 +664,12 @@ export default function ExperimentDetailScreen() {
                 <VictoryAxis
                   fixLabelOverlap
                   style={{ tickLabels: { fontSize: 10, padding: 3 } }}
-                  tickFormat={(t) => {
+                  tickFormat={(t: any) => {
                     const d = new Date(t as any);
                     return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                   }}
                 />
-                <VictoryAxis dependentAxis tickFormat={(t) => `${t}`} />
+                <VictoryAxis dependentAxis tickFormat={(t: any) => `${t}`} />
                 <VictoryLine
                   data={cellCountSeries}
                   x="x"
@@ -705,12 +705,12 @@ export default function ExperimentDetailScreen() {
                 <VictoryAxis
                   fixLabelOverlap
                   style={{ tickLabels: { fontSize: 10, padding: 3 } }}
-                  tickFormat={(t) => {
+                  tickFormat={(t: any) => {
                     const d = new Date(t as any);
                     return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                   }}
                 />
-                <VictoryAxis dependentAxis tickFormat={(t) => `${t}`} />
+                <VictoryAxis dependentAxis tickFormat={(t: any) => `${t}`} />
                 <VictoryLine
                   data={viabilitySeries}
                   x="x"

@@ -4,10 +4,8 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View,
-  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
@@ -15,17 +13,20 @@ import * as DocumentPicker from 'expo-document-picker';
 import { ExperimentNotesBlock } from '@/components/experiment-notes-block';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { VoiceInputButton } from '@/components/voice-input';
+import { ThemedTextInput } from '@/components/themed-text-input';
 import { normalizeDictationText } from '@/lib/dictation-normalize';
 import { useCreateCellLine } from '@/hooks/use-create-cell-line';
 import { useCellLineCatalog } from '@/hooks/use-cell-line-catalog';
 import { useCellLineCatalogSearch } from '@/hooks/use-cell-line-catalog-search';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
-import ChatThread from '@/components/chat/chat-thread';
+import { VoiceChatModal } from '@/components/chat/voice-chat-modal';
+import { NEW_CELL_LINE_VOICE_STEPS } from '@/lib/voice-chat-scripts';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function NewCellLineScreen() {
   const router = useRouter();
+  const scheme = useColorScheme() ?? 'light';
   const { mutateAsync, isPending, error } = useCreateCellLine();
 
   const [name, setName] = useState('');
@@ -53,7 +54,7 @@ export default function NewCellLineScreen() {
     );
   }, [catalogMatch]);
 
-  const handleChatComplete = (data: Record<string, any>) => {
+  const handleChatComplete = (data: Record<string, string>) => {
     if (data.cellType) setName(String(data.cellType));
     if (data.organism) setOrganism(String(data.organism));
     if (data.tissue) setTissueType(String(data.tissue));
@@ -158,13 +159,31 @@ export default function NewCellLineScreen() {
     router.back();
   };
 
+  const suggestionBg = scheme === 'dark' ? '#252320' : '#FFFFFF';
+  const suggestionBorder = scheme === 'dark' ? '#3B3834' : '#E6DCCF';
+
+  const showSuggestions =
+    searchResults &&
+    searchResults.length > 0 &&
+    !(searchResults.length === 1 && searchResults[0].name.toLowerCase() === name.toLowerCase().trim());
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
-      behavior={Platform.select({ ios: 'padding', android: undefined })}>
+      behavior={Platform.select({ ios: 'padding', android: undefined })}
+    >
       <ThemedView style={styles.container}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <ThemedText type="title">New Cell Line</ThemedText>
+          <View style={styles.titleRow}>
+            <ThemedText type="title" style={styles.titleText}>New Cell Line</ThemedText>
+            <TouchableOpacity 
+              onPress={() => setIsChatOpen(true)} 
+              style={styles.voiceTitleButton}
+              activeOpacity={0.8}
+            > 
+              <ThemedText type="defaultSemiBold" style={styles.voiceBtnText}>Voice chat</ThemedText>
+            </TouchableOpacity>
+          </View>
           <View style={styles.field}>
             <View style={styles.labelRow}>
               <ThemedText>Name *</ThemedText>
@@ -174,7 +193,7 @@ export default function NewCellLineScreen() {
                 </ThemedText>
               ) : null}
             </View>
-            <TextInput
+            <ThemedTextInput
               style={styles.input}
               value={name}
               onChangeText={setName}
@@ -183,73 +202,71 @@ export default function NewCellLineScreen() {
                 if (next !== name) setName(next);
               }}
               placeholder="HeLa, HEK293..."
+              enableVoice={true}
             />
-            <VoiceInputButton value={name} onChangeText={setName} append={false} />
-            {searchResults && searchResults.length > 0 ? (
-              <View style={styles.suggestions}>
+            {showSuggestions ? (
+              <View style={[styles.suggestions, { backgroundColor: suggestionBg, borderColor: suggestionBorder }]}>
                 {searchResults.map((result) => (
                   <TouchableOpacity
-                    key={result.id}
-                    style={styles.suggestionItem}
-                    onPress={() => setName(result.name)}>
-                    <ThemedText>
-                      {result.name}
-                      {result.organism ? ` · ${result.organism}` : ''}
-                    </ThemedText>
+                    key={result.name}
+                    style={[styles.suggestionItem, { borderBottomColor: suggestionBorder }]}
+                    onPress={() => {
+                      setName(result.name);
+                    }}
+                  >
+                    <ThemedText type="defaultSemiBold">{result.name}</ThemedText>
+                    {result.organism ? (
+                      <ThemedText style={{ fontSize: 12, opacity: 0.8 }}>
+                        {result.organism}
+                      </ThemedText>
+                    ) : null}
                   </TouchableOpacity>
                 ))}
               </View>
             ) : null}
-            <View>
-              <TouchableOpacity onPress={() => setIsChatOpen(true)} style={[styles.actionButton, styles.secondaryButton]}>
-                <ThemedText type="defaultSemiBold">Voice chat</ThemedText>
-              </TouchableOpacity>
-            </View>
           </View>
-          {!catalogMatch ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }} >
-              <TouchableOpacity onPress={() => setSaveAsTemplate((prev) => !prev)}>
-                <ThemedText>
-                  {saveAsTemplate ? '☑' : '☐'} Save these details as a reusable template
-                </ThemedText>
-              </TouchableOpacity>
-            </View>
-          ) : null}
+
+          {/* Voice Chat moved inline with title */}
+
           <View style={styles.field}>
             <ThemedText>Organism</ThemedText>
-            <TextInput
+            <ThemedTextInput
               style={styles.input}
               value={organism}
               onChangeText={setOrganism}
               placeholder="Human, Mouse..."
+              enableVoice={true}
             />
           </View>
           <View style={styles.field}>
             <ThemedText>Tissue type</ThemedText>
-            <TextInput
+            <ThemedTextInput
               style={styles.input}
               value={tissueType}
               onChangeText={setTissueType}
               placeholder="Cervical, Kidney..."
+              enableVoice={true}
             />
           </View>
           <View style={styles.field}>
             <ThemedText>Morphology</ThemedText>
-            <TextInput
+            <ThemedTextInput
               style={styles.input}
               value={morphology}
               onChangeText={setMorphology}
               placeholder="Adherent, Suspension..."
+              enableVoice={true}
             />
           </View>
           <View style={styles.field}>
             <ThemedText>Doubling time (hours)</ThemedText>
-            <TextInput
+            <ThemedTextInput
               style={styles.input}
               value={doublingTime}
               onChangeText={setDoublingTime}
               keyboardType="numeric"
               placeholder="e.g. 24"
+              enableVoice={true}
             />
           </View>
           <View style={styles.field}>
@@ -266,7 +283,8 @@ export default function NewCellLineScreen() {
           <TouchableOpacity
             disabled={isPending}
             onPress={isPending ? undefined : handleSaveAndAttach}
-            style={[styles.attachButton, isPending && styles.attachButtonDisabled]}>
+            style={[styles.attachButton, isPending && styles.attachButtonDisabled]}
+          >
             <ThemedText type="defaultSemiBold" style={styles.attachButtonText}>
               Attach spec sheet (optional)
             </ThemedText>
@@ -274,29 +292,31 @@ export default function NewCellLineScreen() {
 
           {error ? <ThemedText style={styles.errorText}>{(error as Error).message}</ThemedText> : null}
           <View style={styles.actions}>
-            <ThemedText
-              onPress={() => router.back()}
-              style={[styles.button, styles.secondaryButton]}>
-              Cancel
-            </ThemedText>
-            <ThemedText
+            <TouchableOpacity 
+              onPress={() => router.back()} 
+              style={[styles.button, styles.secondaryButton]}
+              activeOpacity={0.8}
+            >
+              <ThemedText type="defaultSemiBold">Cancel</ThemedText>
+            </TouchableOpacity>
+            <TouchableOpacity
+              disabled={isPending}
               onPress={isPending ? undefined : handleSave}
-              style={[styles.button, styles.primaryButton]}>
-              {isPending ? 'Saving…' : 'Save'}
-            </ThemedText>
+              style={[styles.button, styles.primaryActionButton, isPending && styles.buttonDisabled]}
+              activeOpacity={0.85}
+            >
+              <ThemedText type="defaultSemiBold" lightColor="#FFFFFF">
+                {isPending ? 'Saving…' : 'Save'}
+              </ThemedText>
+            </TouchableOpacity>
           </View>
         </ScrollView>
-        <Modal visible={isChatOpen} animationType="slide" presentationStyle="overFullScreen">
-          <View style={styles.chatModalContainer}>
-            <View style={styles.chatModalHeader}>
-              <ThemedText type="title">Voice chat</ThemedText>
-              <TouchableOpacity onPress={() => setIsChatOpen(false)} style={styles.chatModalClose}>
-                <ThemedText>Close</ThemedText>
-              </TouchableOpacity>
-            </View>
-            <ChatThread onComplete={handleChatComplete} onCancel={() => setIsChatOpen(false)} />
-          </View>
-        </Modal>
+        <VoiceChatModal
+          visible={isChatOpen}
+          steps={NEW_CELL_LINE_VOICE_STEPS}
+          onComplete={handleChatComplete}
+          onClose={() => setIsChatOpen(false)}
+        />
       </ThemedView>
     </KeyboardAvoidingView>
   );
@@ -315,12 +335,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   input: {
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: 'indigo',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginVertical: 2,
   },
   notesInput: {
     minHeight: 100,
@@ -353,13 +368,26 @@ const styles = StyleSheet.create({
   },
   button: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  primaryButton: {
-    fontWeight: '600',
+  primaryActionButton: {
+    backgroundColor: '#340D0E',
+    shadowColor: '#340D0E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  secondaryButton: {},
+  secondaryButton: {
+    borderWidth: 1,
+    borderColor: '#E6DCCF',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
   errorText: {
     color: 'red',
   },
@@ -378,9 +406,25 @@ const styles = StyleSheet.create({
   attachButtonText: {
     textAlign: 'center',
   },
-  actionButton: { borderRadius: 999, paddingVertical: 12, paddingHorizontal: 16, alignItems: 'center' },
-  chatModalContainer: { flex: 1, backgroundColor: '#090909', paddingTop: Platform.OS === 'ios' ? 50 : 20 },
-  chatModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#222' },
-  chatModalClose: { padding: 8 },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  titleText: {
+    marginVertical: 0,
+  },
+  voiceTitleButton: {
+    borderWidth: 1,
+    borderColor: '#340D0E',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+  },
+  voiceBtnText: {
+    color: '#340D0E',
+    fontSize: 13,
+  },
 });
-

@@ -1,7 +1,7 @@
-import { StyleSheet, TextInput, type TextStyle, TouchableOpacity, View, type StyleProp } from 'react-native';
+import { StyleSheet, type TextStyle, TouchableOpacity, View, type StyleProp } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { VoiceInputButton } from '@/components/voice-input';
+import { ThemedTextInput } from '@/components/themed-text-input';
 import { normalizeDictationText } from '@/lib/dictation-normalize';
 
 type Props = {
@@ -29,7 +29,6 @@ export function ExperimentNotesBlock({
   numberOfLines = 3,
   onParse,
   parseLabel = 'Parse notes → fields',
-  voiceAppend = true,
   normalizeOnBlur = true,
 }: Props) {
   const onBlurNotes = () => {
@@ -40,7 +39,7 @@ export function ExperimentNotesBlock({
 
   return (
     <View style={styles.wrap}>
-      <TextInput
+      <ThemedTextInput
         style={inputStyle}
         value={value}
         onChangeText={onChangeText}
@@ -48,15 +47,15 @@ export function ExperimentNotesBlock({
         placeholder={placeholder}
         multiline
         numberOfLines={numberOfLines}
+        enableVoice={true}
       />
-      <View style={styles.toolbar}>
-        <VoiceInputButton value={value} onChangeText={onChangeText} append={voiceAppend} />
-        {onParse ? (
+      {onParse ? (
+        <View style={styles.toolbar}>
           <TouchableOpacity style={styles.parseBtn} onPress={onParse} accessibilityRole="button">
-            <ThemedText type="defaultSemiBold">{parseLabel}</ThemedText>
+            <ThemedText type="defaultSemiBold" style={styles.parseBtnText}>{parseLabel}</ThemedText>
           </TouchableOpacity>
-        ) : null}
-      </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -65,17 +64,21 @@ const styles = StyleSheet.create({
   wrap: { gap: 8 },
   toolbar: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     alignItems: 'flex-start',
-    gap: 10,
+    marginTop: 4,
   },
   parseBtn: {
     borderRadius: 999,
     paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     borderWidth: 1,
+    borderColor: '#340D0E',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
+    backgroundColor: '#FFFFFF',
+  },
+  parseBtnText: {
+    color: '#340D0E',
+    fontSize: 13,
   },
 });

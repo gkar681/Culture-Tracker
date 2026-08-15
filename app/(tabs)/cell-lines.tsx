@@ -31,12 +31,12 @@ export default function CellLinesScreen() {
           <TouchableOpacity
             style={styles.secondaryButton}
             onPress={() => router.push('/(app)/onboarding')}>
-            <ThemedText type="defaultSemiBold">Walkthrough</ThemedText>
+            <ThemedText type="defaultSemiBold" style={{ color: '#340D0E' }}>Walkthrough</ThemedText>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.addButton}
             onPress={() => router.push('/(app)/cell-line/new')}>
-            <ThemedText type="defaultSemiBold">+ Add</ThemedText>
+            <ThemedText type="defaultSemiBold" style={{ color: '#FFFFFF' }}>+ Add</ThemedText>
           </TouchableOpacity>
         </ThemedView>
       </ThemedView>
@@ -93,21 +93,23 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   card: {
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   addButton: {
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#340D0E',
   },
   secondaryButton: {
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderWidth: 1,
+    borderColor: '#340D0E',
   },
   errorText: {
     color: 'red',

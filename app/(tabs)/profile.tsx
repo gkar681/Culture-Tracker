@@ -7,7 +7,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  Image,
 } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import { ThemedTextInput } from '@/components/themed-text-input';
 import { ThemedText } from '@/components/themed-text';
@@ -16,6 +20,24 @@ import { useProfile, useUpdateProfile } from '@/hooks/use-profile';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/lib/auth';
 import { resetOnboarding } from '@/lib/onboarding';
+
+const PRESET_AVATARS = [
+  {
+    key: 'dna',
+    name: 'DNA Double Helix',
+    source: require('@/assets/images/avatar_dna.jpg'),
+  },
+  {
+    key: 'flask',
+    name: 'Lab Flask',
+    source: require('@/assets/images/avatar_flask.jpg'),
+  },
+  {
+    key: 'microscope',
+    name: 'Microscope Focus',
+    source: require('@/assets/images/avatar_microscope.jpg'),
+  },
+];
 
 export default function ProfileScreen() {
   const tint = useThemeColor({}, 'tint');
@@ -27,6 +49,8 @@ export default function ProfileScreen() {
   const [name, setName] = useState('');
   const [labName, setLabName] = useState('');
   const [bio, setBio] = useState('');
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [selectedPresetKey, setSelectedPresetKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile) return;
@@ -34,6 +58,45 @@ export default function ProfileScreen() {
     setLabName(profile.lab_name ?? '');
     setBio(profile.bio ?? '');
   }, [profile]);
+
+  useEffect(() => {
+    // Load persisted avatar URI or preset key on mount
+    AsyncStorage.getItem('profile_avatar_uri').then((val) => {
+      if (val) {
+        if (['dna', 'flask', 'microscope'].includes(val)) {
+          setSelectedPresetKey(val);
+          setAvatarUri(null);
+        } else {
+          setAvatarUri(val);
+          setSelectedPresetKey(null);
+        }
+      }
+    });
+  }, []);
+
+  const handlePickPhoto = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'image/*',
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const pickedUri = result.assets[0].uri;
+        setAvatarUri(pickedUri);
+        setSelectedPresetKey(null);
+        await AsyncStorage.setItem('profile_avatar_uri', pickedUri);
+      }
+    } catch (e) {
+      console.warn('Failed to pick profile image', e);
+    }
+  };
+
+  const handleSelectPreset = async (key: string) => {
+    setSelectedPresetKey(key);
+    setAvatarUri(null);
+    await AsyncStorage.setItem('profile_avatar_uri', key);
+  };
 
   const handleSave = () => {
     updateProfile.mutate({
@@ -60,6 +123,45 @@ export default function ProfileScreen() {
               {user.email}
             </ThemedText>
           ) : null}
+
+          {/* Avatar Photo Section */}
+          <View style={styles.avatarSection}>
+            <TouchableOpacity onPress={handlePickPhoto} style={styles.avatarContainer} activeOpacity={0.8}>
+              {selectedPresetKey ? (
+                <Image 
+                  source={PRESET_AVATARS.find((p) => p.key === selectedPresetKey)?.source} 
+                  style={styles.avatar} 
+                />
+              ) : avatarUri ? (
+                <Image source={{ uri: avatarUri }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatarPlaceholder, { backgroundColor: borderHairline }]}>
+                  <MaterialIcons name="person" size={50} color="#FAF7F2" />
+                </View>
+              )}
+              <View style={styles.cameraIconContainer}>
+                <MaterialIcons name="photo-camera" size={14} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
+            <ThemedText style={styles.avatarLabel}>Tap avatar to upload custom photo</ThemedText>
+
+            <ThemedText style={styles.presetsTitle}>Or choose a fun lab icon preset:</ThemedText>
+            <View style={styles.presetsRow}>
+              {PRESET_AVATARS.map((preset) => (
+                <TouchableOpacity
+                  key={preset.key}
+                  onPress={() => handleSelectPreset(preset.key)}
+                  style={[
+                    styles.presetItem,
+                    selectedPresetKey === preset.key && styles.presetItemActive,
+                  ]}
+                  activeOpacity={0.8}
+                >
+                  <Image source={preset.source} style={styles.presetImage} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
 
           {isLoading ? (
             <View style={styles.centerRow}>
@@ -122,12 +224,14 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 style={[
                   styles.primaryBtn,
-                  { borderColor: tint },
+                  { backgroundColor: '#340D0E', borderColor: '#340D0E' },
                   !canSave && styles.primaryBtnDisabled,
                 ]}
                 onPress={handleSave}
-                disabled={!canSave}>
-                <ThemedText type="defaultSemiBold">{updateProfile.isPending ? 'Saving…' : 'Save'}</ThemedText>
+                disabled={!canSave}
+                activeOpacity={0.85}
+              >
+                <ThemedText type="defaultSemiBold" lightColor="#FFFFFF">{updateProfile.isPending ? 'Saving…' : 'Save'}</ThemedText>
               </TouchableOpacity>
             </>
           )}
@@ -168,7 +272,12 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 14,
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 1,
+    shadowColor: '#340D0E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 2,
   },
   primaryBtnDisabled: { opacity: 0.45 },
   secondaryBtn: {
@@ -181,4 +290,77 @@ const styles = StyleSheet.create({
   divider: { height: 1, marginVertical: 16, opacity: 0.25 },
   errorText: { color: 'red' },
   hint: { fontSize: 13, lineHeight: 18, opacity: 0.85 },
+  
+  // Avatar Styles
+  avatarSection: {
+    alignItems: 'center',
+    marginVertical: 10,
+    gap: 8,
+  },
+  avatarContainer: {
+    position: 'relative',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    overflow: 'visible',
+  },
+  avatar: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 2,
+    borderColor: '#340D0E',
+  },
+  avatarPlaceholder: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cameraIconContainer: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    backgroundColor: '#340D0E',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FAF7F2',
+  },
+  avatarLabel: {
+    fontSize: 12,
+    opacity: 0.75,
+  },
+  presetsTitle: {
+    fontSize: 12,
+    marginTop: 6,
+    opacity: 0.75,
+  },
+  presetsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 2,
+  },
+  presetItem: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#E6DCCF',
+    padding: 2,
+    backgroundColor: '#FFFFFF',
+  },
+  presetItemActive: {
+    borderColor: '#340D0E',
+    borderWidth: 2,
+  },
+  presetImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+  },
 });

@@ -1,15 +1,17 @@
-import { View, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, TextInput, Modal } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 
 import { ExperimentNotesBlock } from '@/components/experiment-notes-block';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { VoiceInputButton } from '@/components/voice-input';
+import { ThemedTextInput } from '@/components/themed-text-input';
 import { normalizeDictationText } from '@/lib/dictation-normalize';
 import { useCellLines } from '@/hooks/use-cell-lines';
 import { useCreateExperiment } from '@/hooks/use-create-experiment';
-import ChatThread from '@/components/chat/chat-thread';
+import { VoiceChatModal } from '@/components/chat/voice-chat-modal';
+import { NEW_EXPERIMENT_VOICE_STEPS } from '@/lib/voice-chat-scripts';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 function todayIso() {
   const d = new Date();
@@ -21,6 +23,7 @@ function todayIso() {
 
 export default function NewExperimentScreen() {
   const router = useRouter();
+  const scheme = useColorScheme() ?? 'light';
   const { data: cellLines, isLoading: loadingCellLines, isError } = useCellLines();
   const createExperiment = useCreateExperiment();
 
@@ -41,7 +44,7 @@ export default function NewExperimentScreen() {
 
   const canShowCellLines = !loadingCellLines && !!cellLines && !isError;
 
-  const handleChatComplete = (data: Record<string, any>) => {
+  const handleChatComplete = (data: Record<string, string>) => {
     if (data.experimentName) setName(String(data.experimentName));
     if (data.description) setDescription(String(data.description));
 
@@ -56,19 +59,26 @@ export default function NewExperimentScreen() {
     setIsChatOpen(false);
   };
 
-  
-
-
-
+  const cardBorderColor = scheme === 'dark' ? '#2D2D2D' : '#E6DCCF';
+  const cellLineRowBg = scheme === 'dark' ? '#1C1A17' : '#FFFFFF';
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.select({ ios: 'padding', android: undefined })}>
       <ThemedView style={styles.container}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <ThemedText type="title">New experiment</ThemedText>
+          <View style={styles.titleRow}>
+            <ThemedText type="title" style={styles.titleText}>New experiment</ThemedText>
+            <TouchableOpacity 
+              onPress={() => setIsChatOpen(true)} 
+              style={styles.voiceTitleButton}
+              activeOpacity={0.8}
+            > 
+              <ThemedText type="defaultSemiBold" style={styles.voiceBtnText}>Voice chat</ThemedText>
+            </TouchableOpacity>
+          </View>
 
-          <ThemedText>Name *</ThemedText>
-          <TextInput
+          <ThemedText style={styles.fieldLabel}>Name *</ThemedText>
+          <ThemedTextInput
             style={styles.input}
             value={name}
             onChangeText={setName}
@@ -77,16 +87,12 @@ export default function NewExperimentScreen() {
               if (next !== name) setName(next);
             }}
             placeholder="e.g. HeLa drug response - batch 1"
+            enableVoice={true}
           />
-          <VoiceInputButton value={name} onChangeText={setName} append={false} />
           
-          <View>
-            <TouchableOpacity onPress={() => setIsChatOpen(true)} style={[styles.actionButton, styles.secondaryButton]}> 
-              <ThemedText type="defaultSemiBold">Voice chat</ThemedText>
-            </TouchableOpacity>
-          </View>
+          {/* Voice Chat moved inline with title */}
 
-          <ThemedText>Description</ThemedText>
+          <ThemedText style={styles.fieldLabel}>Description</ThemedText>
           <ExperimentNotesBlock
             value={description}
             onChangeText={setDescription}
@@ -94,20 +100,37 @@ export default function NewExperimentScreen() {
             numberOfLines={3}
           />
 
-          <ThemedText>Status</ThemedText>
+          <ThemedText style={styles.fieldLabel}>Status</ThemedText>
           <ThemedView style={styles.segmentRow}>
             {(['Planned', 'In Progress', 'Completed'] as const).map((s) => (
               <TouchableOpacity
                 key={s}
-                style={[styles.segment, status === s.toLowerCase() && styles.segmentActive]}
-                onPress={() => setStatus(s.toLowerCase() as any)}>
-                <ThemedText style={status === s.toLowerCase() ? styles.segmentTextActive : undefined}>{s}</ThemedText>
+                style={[
+                  styles.segment, 
+                  { borderColor: cardBorderColor },
+                  status === s.toLowerCase() && styles.segmentActive
+                ]}
+                onPress={() => setStatus(s.toLowerCase() as any)}
+                activeOpacity={0.8}
+              >
+                <ThemedText 
+                  style={status === s.toLowerCase() ? styles.segmentTextActive : { color: '#8C7B70' }}
+                  lightColor={status === s.toLowerCase() ? '#FFFFFF' : undefined}
+                >
+                  {s}
+                </ThemedText>
               </TouchableOpacity>
             ))}
           </ThemedView>
 
-          <ThemedText>Start date</ThemedText>
-          <TextInput style={styles.input} value={startDate} onChangeText={setStartDate} placeholder="YYYY-MM-DD" />
+          <ThemedText style={styles.fieldLabel}>Start date</ThemedText>
+          <ThemedTextInput 
+            style={styles.input} 
+            value={startDate} 
+            onChangeText={setStartDate} 
+            placeholder="YYYY-MM-DD" 
+            enableVoice={true}
+          />
 
           <ThemedText style={styles.sectionTitle}>
             Cell lines in this experiment * ({selectedCount})
@@ -117,22 +140,35 @@ export default function NewExperimentScreen() {
             cellLines!.map((cl) => {
               const selected = selectedCellLineIds.includes(cl.id);
               return (
-                <TouchableOpacity key={cl.id} style={[styles.cellLineRow, selected && styles.cellLineRowSelected]} onPress={() => toggleCellLine(cl.id)}>
+                <TouchableOpacity 
+                  key={cl.id} 
+                  style={[
+                    styles.cellLineRow, 
+                    { backgroundColor: cellLineRowBg, borderColor: selected ? '#340D0E' : cardBorderColor },
+                    selected && styles.cellLineRowSelected
+                  ]} 
+                  onPress={() => toggleCellLine(cl.id)}
+                  activeOpacity={0.7}
+                >
                   <ThemedText type="defaultSemiBold">{cl.name}</ThemedText>
-                  {cl.organism ? <ThemedText>{cl.organism}</ThemedText> : null}
+                  {cl.organism ? <ThemedText style={{ fontSize: 13, color: '#8C7B70' }}>{cl.organism}</ThemedText> : null}
                 </TouchableOpacity>
               );
             })
           ) : (
-            <ThemedText>Loading cell lines…</ThemedText>
+            <ThemedText style={{ fontStyle: 'italic', opacity: 0.8 }}>Loading cell lines…</ThemedText>
           )}
 
           {createExperiment.error ? (
             <ThemedText style={styles.errorText}>{(createExperiment.error as Error).message}</ThemedText>
           ) : null}
 
-          <ThemedView style={styles.actions}>
-            <TouchableOpacity onPress={() => router.back()} style={[styles.actionButton, styles.secondaryButton]}>
+          <View style={styles.actions}>
+            <TouchableOpacity 
+              onPress={() => router.back()} 
+              style={[styles.actionButton, styles.secondaryButton]}
+              activeOpacity={0.8}
+            >
               <ThemedText type="defaultSemiBold">Cancel</ThemedText>
             </TouchableOpacity>
             <TouchableOpacity
@@ -146,22 +182,21 @@ export default function NewExperimentScreen() {
                   cellLineIds: selectedCellLineIds,
                 }).then(() => router.back())
               }
-              style={[styles.actionButton, buttonDisabled && styles.actionButtonDisabled]}>
-              <ThemedText type="defaultSemiBold">{createExperiment.isPending ? 'Creating…' : 'Create experiment'}</ThemedText>
-            </TouchableOpacity>
-          </ThemedView>
-        </ScrollView>
-      <Modal visible={isChatOpen} animationType="slide" presentationStyle="overFullScreen">
-        <View style={styles.chatModalContainer}>
-          <View style={styles.chatModalHeader}>
-            <ThemedText type="title">Voice chat</ThemedText>
-            <TouchableOpacity onPress={() => setIsChatOpen(false)} style={styles.chatModalClose}>
-              <ThemedText>Close</ThemedText>
+              style={[styles.actionButton, styles.primaryActionButton, buttonDisabled && styles.actionButtonDisabled]}
+              activeOpacity={0.85}
+            >
+              <ThemedText type="defaultSemiBold" lightColor="#FFFFFF">
+                {createExperiment.isPending ? 'Creating…' : 'Create experiment'}
+              </ThemedText>
             </TouchableOpacity>
           </View>
-          <ChatThread onComplete={handleChatComplete} onCancel={() => setIsChatOpen(false)} />
-        </View>
-      </Modal>
+        </ScrollView>
+        <VoiceChatModal
+          visible={isChatOpen}
+          steps={NEW_EXPERIMENT_VOICE_STEPS}
+          onComplete={handleChatComplete}
+          onClose={() => setIsChatOpen(false)}
+        />
       </ThemedView>
     </KeyboardAvoidingView>
   );
@@ -170,23 +205,87 @@ export default function NewExperimentScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
   content: { gap: 10, paddingBottom: 32 },
-  input: { borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, fontFamily: 'PlayfairDisplay_400Regular', color: 'indigo' },
+  input: {
+    marginVertical: 2,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    marginTop: 8,
+  },
   multiline: { minHeight: 72, textAlignVertical: 'top' },
-  sectionTitle: { marginTop: 10 },
-  segmentRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  segment: { flex: 1, paddingVertical: 10, borderRadius: 999, borderWidth: 1, alignItems: 'center' },
-  segmentActive: { borderWidth: 0 },
-  segmentTextActive: { fontWeight: '600' },
-  cellLineRow: { borderRadius: 12, borderWidth: 1, padding: 12, gap: 2 },
-  cellLineRowSelected: { borderWidth: 2 },
-  errorText: { color: 'red', marginTop: 8 },
-  actions: { flexDirection: 'row', gap: 12, marginTop: 12, justifyContent: 'flex-end' },
-  actionButton: { borderRadius: 999, paddingVertical: 12, paddingHorizontal: 16, alignItems: 'center' },
-  secondaryButton: { borderWidth: 1 },
-  primaryButton: { fontWeight: '600' },
-  chatModalContainer: { flex: 1, backgroundColor: '#090909', paddingTop: Platform.OS === 'ios' ? 50 : 20 },
-  chatModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#222' },
-  chatModalClose: { padding: 8 },
+  sectionTitle: { marginTop: 16, fontSize: 16 },
+  segmentRow: { flexDirection: 'row', gap: 8, marginTop: 4, backgroundColor: 'transparent' },
+  segment: { 
+    flex: 1, 
+    paddingVertical: 10, 
+    borderRadius: 999, 
+    borderWidth: 1, 
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  segmentActive: { 
+    borderWidth: 0,
+    backgroundColor: '#340D0E',
+  },
+  segmentTextActive: { 
+    fontWeight: '600',
+  },
+  cellLineRow: { 
+    borderRadius: 14, 
+    borderWidth: 1, 
+    padding: 14, 
+    gap: 2,
+    marginVertical: 4,
+    shadowColor: '#340D0E',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  cellLineRowSelected: { 
+    borderWidth: 2,
+  },
+  errorText: { color: '#D97706', marginTop: 8, textAlign: 'center' },
+  actions: { flexDirection: 'row', gap: 12, marginTop: 20, justifyContent: 'flex-end' },
+  actionButton: { 
+    borderRadius: 999, 
+    paddingVertical: 12, 
+    paddingHorizontal: 16, 
+    alignItems: 'center', 
+    justifyContent: 'center',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  titleText: {
+    marginVertical: 0,
+  },
+  voiceTitleButton: {
+    borderWidth: 1,
+    borderColor: '#340D0E',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+  },
+  voiceBtnText: {
+    color: '#340D0E',
+    fontSize: 13,
+  },
+  secondaryButton: { 
+    borderWidth: 1,
+    borderColor: '#E6DCCF',
+  },
+  primaryActionButton: { 
+    backgroundColor: '#340D0E',
+    shadowColor: '#340D0E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 2,
+  },
   actionButtonDisabled: { opacity: 0.6 },
 });
-
