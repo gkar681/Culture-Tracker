@@ -20,7 +20,7 @@ import { setCompletedOnboarding } from '@/lib/onboarding';
 
 const LOGO = require('@/assets/images/CultureTrackerLogo.png');
 
-type IconName = 'layers' | 'science' | 'edit-note' | 'insights';
+type IconName = 'mic' | 'alarm' | 'lock' | 'palette';
 
 type Page =
   | {
@@ -42,35 +42,35 @@ const PAGES: Page[] = [
     key: 'welcome',
     variant: 'logo',
     title: 'Welcome to CultureTracker',
-    body: 'Track cell lines and experiments in one place. This quick tour takes about 30 seconds.',
+    body: 'Track cell lines, experiments, and protocols hands-free. Let\'s review our new tools in 30 seconds.',
   },
   {
-    key: 'cell-lines',
+    key: 'voice-inputs',
     variant: 'icon',
-    icon: 'layers',
-    title: 'Add your cell lines',
-    body: 'Open Cell Lines → + Add. Type a name or pick from catalog suggestions. You can attach a spec sheet PDF or image anytime.',
+    icon: 'mic',
+    title: 'Hands-Free Dictation',
+    body: 'Tap the mic icon inside any input to dictate directly, or tap "Voice chat" in the header to run our guided AI form filler hands-free.',
   },
   {
-    key: 'experiments',
+    key: 'timers',
     variant: 'icon',
-    icon: 'science',
-    title: 'Create experiments',
-    body: 'In Experiments → + New, name your study and choose which cell lines are involved so everything stays linked.',
+    icon: 'alarm',
+    title: 'Incubation Timers',
+    body: 'Say "Set a washing timer for 10 minutes" during notes dictation. Active timers tick on the home dashboard and push notify you upon completion.',
   },
   {
-    key: 'logging',
+    key: 'privacy',
     variant: 'icon',
-    icon: 'edit-note',
-    title: 'Log what you do',
-    body: 'Inside an experiment, record passages, observations, counts, treatments, and images. Use the section tabs to stay focused.',
+    icon: 'lock',
+    title: 'Enterprise Safety',
+    body: 'Your cell lines and notes are locked in your private database. Speech parsing is processed locally on your device to protect your IP.',
   },
   {
-    key: 'insights',
+    key: 'customization',
     variant: 'icon',
-    icon: 'insights',
-    title: 'See trends',
-    body: 'Charts fill in from your data (confluence, cells/mL, viability), and treatments appear on the timeline.',
+    icon: 'palette',
+    title: 'Profile Customization',
+    body: 'Upload custom photos or pick locally bundled scientific sticker presets (DNA double helix, flask, or microscope focus) to personalize your lab profile.',
   },
 ];
 
@@ -81,10 +81,10 @@ export default function OnboardingScreen() {
   const width = Dimensions.get('window').width;
 
   const colorScheme = useColorScheme() ?? 'light';
-  const tint = useThemeColor({}, 'tint');
+  const tint = '#340D0E';
   const iconMuted = useThemeColor({}, 'icon');
-  const borderSubtle = useThemeColor({}, 'icon');
-  const heroBg = colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(10, 126, 164, 0.12)';
+  const borderSubtle = '#E6DCCF';
+  const heroBg = '#FFFFFF';
 
   const finish = async () => {
     await setCompletedOnboarding();
@@ -170,32 +170,40 @@ export default function OnboardingScreen() {
             <TouchableOpacity
               onPress={goPrev}
               style={[styles.button, styles.secondary, { borderColor: borderSubtle }]}
-              accessibilityRole="button">
+              accessibilityRole="button"
+              activeOpacity={0.8}
+            >
               <ThemedText type="defaultSemiBold">Back</ThemedText>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
               onPress={finish}
               style={[styles.button, styles.secondary, { borderColor: borderSubtle }]}
-              accessibilityRole="button">
+              accessibilityRole="button"
+              activeOpacity={0.8}
+            >
               <ThemedText type="defaultSemiBold">Skip</ThemedText>
             </TouchableOpacity>
           )}
           {page < PAGES.length - 1 ? (
             <TouchableOpacity
               onPress={goNext}
-              style={[styles.button, styles.primary, { borderColor: tint, backgroundColor: heroBg }]}
-              accessibilityRole="button">
-              <ThemedText type="defaultSemiBold" style={{ color: tint }}>
+              style={[styles.button, styles.primaryActionButton]}
+              accessibilityRole="button"
+              activeOpacity={0.85}
+            >
+              <ThemedText type="defaultSemiBold" style={{ color: '#FFFFFF' }}>
                 Next
               </ThemedText>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
               onPress={finish}
-              style={[styles.button, styles.primary, { borderColor: tint, backgroundColor: tint }]}
-              accessibilityRole="button">
-              <ThemedText type="defaultSemiBold" lightColor="#FFFFFF" darkColor="#11181C">
+              style={[styles.button, styles.primaryActionButton]}
+              accessibilityRole="button"
+              activeOpacity={0.85}
+            >
+              <ThemedText type="defaultSemiBold" lightColor="#FFFFFF">
                 Done
               </ThemedText>
             </TouchableOpacity>
@@ -229,6 +237,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 200,
+    borderWidth: 1,
+    borderColor: '#E6DCCF',
+    shadowColor: '#340D0E',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 4,
+    elevation: 1,
   },
   logoImage: {
     width: 140,
@@ -259,7 +274,25 @@ const styles = StyleSheet.create({
     opacity: 1,
   },
   actions: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
-  button: { flex: 1, borderRadius: 999, paddingVertical: 14, alignItems: 'center', borderWidth: 1 },
-  primary: { borderWidth: 2 },
-  secondary: {},
+  button: { 
+    flex: 1, 
+    borderRadius: 999, 
+    paddingVertical: 14, 
+    alignItems: 'center', 
+    justifyContent: 'center',
+  },
+  primaryActionButton: {
+    backgroundColor: '#340D0E',
+    borderColor: '#340D0E',
+    borderWidth: 1,
+    shadowColor: '#340D0E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  secondary: {
+    borderWidth: 1,
+    backgroundColor: '#FFFFFF',
+  },
 });
